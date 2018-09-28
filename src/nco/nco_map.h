@@ -31,6 +31,8 @@
 #include "nco_sld.h" /* Swath-Like Data */
 #include "nco_sng_utl.h" /* String utilities */
 
+#include "nco_poly.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -67,6 +69,17 @@ extern "C" {
    int **row_dst_adr_ptr, /* O [idx] Destination address (row) */
    double **wgt_raw_ptr, /* O [frc] Remapping weights */ 
    size_t *lnk_nbr_ptr); /* O [nbr] Number of links */
+
+   int
+   nco_msh_wrt
+   (const  char *fl_nm,
+   size_t grd_sz_nbr,
+   size_t grd_crn_nbr,
+   double *lat_crn,
+   double *lon_crn);
+     
+
+
   
 #ifdef __cplusplus
 } /* end extern "C" */

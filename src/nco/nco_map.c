@@ -9,6 +9,8 @@
 
 #include "nco_map.h" /* Map generation */
 
+#include "nco_poly.c"
+
 int /* O [enm] Return code */
 nco_map_mk /* [fnc] Create ESMF-format map file */
 (rgr_sct * const rgr) /* I/O [sct] Regridding structure */
@@ -735,6 +737,7 @@ nco_map_mk /* [fnc] Create ESMF-format map file */
   return rcd;
 } /* !nco_map_mk() */
 
+
 int /* O [enm] Return code */
 nco_msh_mk /* [fnc] Compute overlap mesh and weights */
 (rgr_sct * const rgr, /* I [sct] Regridding structure */
@@ -789,6 +792,28 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
      NB: Parallelize loop with OpenMP and/or MPI
      Final lnk_nbr and grd_crn_nbr_vrl are known only after a full loop through input grids */
 
+
+  if(nco_dbg_lvl_get() >= nco_dbg_crr) (void)fprintf(stderr,"%s:%s Just entered function- test msh_wrt()\n",nco_prg_nm_get(),fnc_nm);
+
+  nco_msh_wrt("test-wrt.nc", grd_sz_in, grd_crn_nbr_in, lat_crn_in, lon_crn_in);
+
+  //  test nco_poly functions
+  {
+    int idx;
+    poly_sct **pl_lst;
+    int pl_cnt_out;
+    
+    pl_lst =nco_poly_lst_mk(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, &pl_cnt_out);
+
+    printf("About to print poly sct number of polygons %d\n", pl_cnt_out);
+    for(idx=0;idx<pl_cnt_out; idx++) 
+      (void)nco_poly_prn(0,pl_lst[idx]);
+
+
+
+    pl_lst=nco_poly_lst_free(pl_lst,pl_cnt_out);  
+  }
+    
   lnk_nbr=1L; /* [nbr] Number of overlap polygons */
   grd_crn_nbr_vrl=1L; /* [nbr] Maximum number of vertices in overlap polygon */
   
@@ -820,3 +845,99 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
 
   return rcd;
 } /* !nco_msh_mk() */
+
+
+int
+nco_msh_wrt
+(const  char *fl_out,
+ size_t grd_sz_nbr,
+ size_t grd_crn_nbr,
+ double *lat_crn,
+ double *lon_crn)
+{  
+  const char fnc_nm[]="nco_grd_mk()"; /* [sng] Function name */
+  const int dmn_nbr_2D=2; /* [nbr] Rank of 2-D grid variables */
+  const int dmn_nbr_1D=1; /* [nbr] Rank of 2-D grid variables */
+  
+  int rcd; 
+  int shuffle; /* [flg] Turn-on shuffle filter */
+  int deflate; /* [flg] Turn-on deflate filter */
+
+  int out_id; /* I [id] Output netCDF file ID */
+  int dfl_lvl=NCO_DFL_LVL_UNDEFINED; /* [enm] Deflate level */
+  int fl_out_fmt=NC_FORMAT_CLASSIC; /* [enm] Output file format */
+  int dmn_ids[2]; /* [id] Dimension IDs array for output variable */
+  int dmn_id_grd_crn; /* [id] Grid corners dimension ID */
+  int dmn_id_grd_sz; /* [id] Grid size dimension ID */
+  int grd_crn_lat_id; /* [id] Grid corner latitudes  variable ID */
+  int grd_crn_lon_id; /* [id] Grid corner longitudes variable ID */
+
+  long dmn_srt[2];
+  long dmn_cnt[2];
+
+  const nc_type crd_typ=NC_DOUBLE;
+
+  size_t bfr_sz_hnt=NC_SIZEHINT_DEFAULT; /* [B] Buffer size hint */
+  
+  char *fl_out_tmp=NULL_CEWI;
+
+  char grd_area_nm[]="grid_area"; /* 20150830: NB ESMF_RegridWeightGen --user_areas looks for variable named "grid_area" */
+  char dmn_sz_nm[]="grid_dims";
+  char grd_crn_lat_nm[]="grid_corner_lat";
+  char grd_crn_lon_nm[]="grid_corner_lon";
+  char grd_crn_nm[]="grid_corners";
+  char grd_ctr_lat_nm[]="grid_center_lat";
+  char grd_ctr_lon_nm[]="grid_center_lon";
+  char grd_rnk_nm[]="grid_rank";
+  char grd_sz_nm[]="grid_size";
+  char msk_nm[]="grid_imask";
+
+  nco_bool FORCE_APPEND=False; /* Option A */
+  nco_bool FORCE_OVERWRITE=True; /* Option O */
+  nco_bool RAM_CREATE=False; /* [flg] Create file in RAM */
+  nco_bool RAM_OPEN=False; /* [flg] Open (netCDF3-only) file(s) in RAM */
+  nco_bool WRT_TMP_FL=False; /* [flg] Write output to temporary file */
+
+  
+
+  /* Open grid file */
+  fl_out_tmp=nco_fl_out_open(fl_out,&FORCE_APPEND,FORCE_OVERWRITE,fl_out_fmt,&bfr_sz_hnt,RAM_CREATE,RAM_OPEN,WRT_TMP_FL,&out_id);
+
+  /* Define dimensions */
+  rcd=nco_def_dim(out_id,grd_crn_nm,grd_crn_nbr,&dmn_id_grd_crn);
+  rcd=nco_def_dim(out_id,grd_sz_nm,grd_sz_nbr,&dmn_id_grd_sz);
+
+  dmn_ids[0]=dmn_id_grd_sz;
+  dmn_ids[1]=dmn_id_grd_crn;
+
+  
+  deflate=(int)True;
+  shuffle=NC_SHUFFLE;
+
+  /* Define variables */
+
+
+  (void)nco_def_var(out_id,grd_crn_lat_nm,crd_typ,dmn_nbr_2D,dmn_ids,&grd_crn_lat_id);
+  if(dfl_lvl > 0) (void)nco_def_var_deflate(out_id,grd_crn_lat_id,shuffle,deflate,dfl_lvl);
+
+  (void)nco_def_var(out_id,grd_crn_lon_nm,crd_typ,dmn_nbr_2D,dmn_ids,&grd_crn_lon_id);
+  if(dfl_lvl > 0) (void)nco_def_var_deflate(out_id,grd_crn_lon_id,shuffle,deflate,dfl_lvl);
+
+  /* Begin data mode */
+  (void)nco_enddef(out_id);
+
+  dmn_srt[0]=0L;
+  dmn_srt[1]=0L;
+  dmn_cnt[0]=grd_sz_nbr;
+  dmn_cnt[1]=grd_crn_nbr;
+
+  rcd=nco_put_vara(out_id,grd_crn_lat_id,dmn_srt,dmn_cnt,lat_crn,crd_typ);
+  rcd=nco_put_vara(out_id,grd_crn_lon_id,dmn_srt,dmn_cnt,lon_crn,crd_typ);
+
+  /* Close output file and move it from temporary to permanent location */
+  (void)nco_fl_out_cls(fl_out,fl_out_tmp,out_id);
+
+
+}  
+
+
