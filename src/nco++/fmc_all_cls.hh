@@ -319,7 +319,15 @@ public:
 };
 
 
-
+// polygon  Function family    /***************************************/
+class polygon_cls: public vtl_cls {
+private:
+  enum{ PKML };
+  bool _flg_dbg;
+public:
+  polygon_cls(bool flg_dbg);
+  var_sct *fnd(RefAST expr, RefAST fargs,fmc_cls &fmc_obj, ncoTree &walker);
+};
 
 
 #endif // FMC_ALL_CLS_HH

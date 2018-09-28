@@ -6039,6 +6039,129 @@ var_sct *udunits_cls::regular_fnd(bool &, std::vector<RefAST> &args_vtr, fmc_cls
  }
 
 
+//Polygon Function family /************************************************/
+  polygon_cls::polygon_cls(bool){
+    //Populate only on first constructor call
+    if(fmc_vtr.empty()){
+      fmc_vtr.push_back( fmc_cls("print_kml",this,(int)PKML));
+
+    }
+  }		      
+
+  var_sct *polygon_cls::fnd(RefAST expr, RefAST fargs,fmc_cls &fmc_obj, ncoTree &walker){
+  const std::string fnc_nm("polygon_cls::fnd");
+    int fdx=fmc_obj.fdx();   //index
+    int nbr_args;
+    prs_cls* prs_arg=walker.prs_arg;
+
+    var_sct *var_ret=NULL_CEWI;
+    var_sct *var_lat=NULL_CEWI;
+    var_sct *var_lon=NULL_CEWI;
+    
+    RefAST tr;
+    nc_type in_typ;  
+    std::string susg;
+    std::string serr;
+    std::string sfnm =fmc_obj.fnm(); //method name
+    std::vector<RefAST> vtr_args; 
+    NcapVector<dmn_sct*> dmn_vtr;
+
+
+    susg="ret_code="+sfnm+"(grid_corner_lat, grid_corner_lon)";
+    
+    if(expr)
+      vtr_args.push_back(expr);
+
+    if((tr=fargs->getFirstChild())) {
+       do  
+         vtr_args.push_back(tr);
+       while((tr=tr->getNextSibling()));    
+    } 
+
+    nbr_args=vtr_args.size();
+
+
+    if(nbr_args < 2)
+      err_prn(fnc_nm, "function must be called with 2 arguments\n"  + susg);
+
+    var_lat=walker.out(vtr_args[0]);
+    var_lon=walker.out(vtr_args[1]);       
+
+    if(prs_arg->ntl_scn) {
+      var_lat=nco_var_free(var_lat);
+      var_lon=nco_var_free(var_lon);
+
+      var_ret=ncap_sclr_var_mk(SCS("~dot_methods"),NC_INT,false);    
+      return var_ret;     
+    }  
+
+
+    // print out kml
+    {
+      int idx;
+      int jdx;
+      int grid_corners;
+      int grid_size;
+      char *prn_str="%.13f,%.13f,0\n";   
+      
+
+      if( var_lat->nbr_dim != 2 || var_lon->nbr_dim !=2 || var_lat->type != NC_DOUBLE || var_lon->type != NC_DOUBLE )
+	err_prn(fnc_nm, "both input vars( "+  SCS(var_lat->nm)+","+ SCS(var_lon->nm) + ") must have 2 dims,  and be of type NC_DOUBLE\n");
+     
+      grid_size=var_lat->dim[0]->cnt;
+      grid_corners=var_lat->dim[1]->cnt;
+
+      if( var_lon->dim[0]->cnt != grid_size || var_lon->dim[1]->cnt != grid_corners) 
+        err_prn(fnc_nm, "var " + SCS(var_lon->nm) + " must be same shape as " + SCS(var_lat->nm) + ".\n");   
+
+
+      (void)cast_void_nctype(NC_DOUBLE,&var_lon->val);
+      (void)cast_void_nctype(NC_DOUBLE,&var_lat->val);
+
+      (void)fprintf(stdout, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"); 
+      (void)fprintf(stdout, "<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n"); 
+
+      (void)fprintf(stdout,"\n<Document>\n");
+      for(idx=0;idx<grid_size;idx++){
+	double pdlon=1e10d;
+	double pdlat=1e10d;
+	double dlon;
+	double dlat;
+	(void)fprintf(stdout, "<Placemark>\n<Polygon> <outerBoundaryIs> <LinearRing>\n<coordinates>\n");
+	for(jdx=0;jdx<grid_corners;jdx++){
+	  /// assume input range 0-360.0
+	  // KML google world -180.0 /  180.0
+          dlon=var_lon->val.dp[ idx*grid_corners+jdx ] ;
+	  dlat=var_lat->val.dp[ idx*grid_corners+jdx ];
+	  
+	  if( pdlon != dlon &&  pdlat != dlat ){
+	     (void)fprintf(stdout,prn_str, dlon, dlat);
+	     pdlon=dlon; pdlat=dlat;
+	  }
+
+	}
+	// output first point again KML demand this ?
+	(void)fprintf(stdout, prn_str, var_lon->val.dp[ idx*grid_corners] ,var_lat->val.dp[ idx*grid_corners]);
+	(void)fprintf(stdout, "</coordinates>\n</LinearRing></outerBoundaryIs></Polygon>\n</Placemark>\n");
+	
+      }
+      (void)fprintf(stdout,"</Document>\n</kml>");
+	
+    
+      
+      (void)cast_nctype_void(NC_DOUBLE,&var_lon->val);
+      (void)cast_nctype_void(NC_DOUBLE,&var_lat->val);
+      
+    }
+    var_lat=nco_var_free(var_lat);
+    var_lon=nco_var_free(var_lon);
+    var_ret=ncap_sclr_var_mk(SCS("~dot_methods"),1);
+
+    return var_ret;     
+
+  }
+
+
 
 
 
