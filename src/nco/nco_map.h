@@ -31,6 +31,7 @@
 #include "nco_sld.h" /* Swath-Like Data */
 #include "nco_sng_utl.h" /* String utilities */
 
+#include "kd.h"
 #include "nco_poly.h"
 
 #ifdef __cplusplus
