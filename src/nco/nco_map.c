@@ -785,9 +785,14 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
   long grd_crn_nbr_vrl; /* [nbr] Maximum number of corners in overlap polygon */
 
   size_t idx; /* [idx] Counting index for unrolled grids */
+  size_t jdx;
   size_t lnk_nbr; /* [nbr] Number of links */
   //size_t lnk_idx; /* [idx] Link index */
+  
+  int pl_cnt_vrl;
+  poly_sct **pl_lst_vrl=(poly_sct**)NULL_CEWI;
 
+  
   /* Construct overlap mesh here
      NB: Parallelize loop with OpenMP and/or MPI
      Final lnk_nbr and grd_crn_nbr_vrl are known only after a full loop through input grids */
@@ -799,23 +804,44 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
 
   //  test nco_poly functions
   {
-    int idx;
-    poly_sct **pl_lst;
-    int pl_cnt_out;
-    
-    pl_lst =nco_poly_lst_mk(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, &pl_cnt_out);
+    int pl_cnt_in=0;
+    int pl_cnt_out=0;
 
-    printf("About to print poly sct number of polygons %d\n", pl_cnt_out);
-    for(idx=0;idx<pl_cnt_out; idx++) 
-      (void)nco_poly_prn(0,pl_lst[idx]);
+    poly_sct **pl_lst_in;
+    poly_sct **pl_lst_out;
+
+    pl_lst_in =nco_poly_lst_mk(area_in, msk_in, lat_ctr_in,lon_ctr_in, lat_crn_in, lon_crn_in, grd_sz_in, (size_t)grd_crn_nbr_in, &pl_cnt_in);
+
+    pl_lst_out =nco_poly_lst_mk(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, &pl_cnt_out);
 
 
+    if(nco_dbg_lvl_get() >= nco_dbg_crr){
+      fprintf(stdout, "%s: INFO About to print poly sct number of polygons %d\n", nco_prg_nm_get(), pl_cnt_out);
+      for(idx=0;idx<pl_cnt_out; idx++) 
+      (void)nco_poly_prn(0,pl_lst_out[idx]);
 
-    pl_lst=nco_poly_lst_free(pl_lst,pl_cnt_out);  
+    } 
+
+    /* call the overlap routine */
+    if( pl_cnt_in && pl_cnt_out)
+        pl_lst_vrl=nco_poly_mk_vrl_lst(pl_lst_in, pl_cnt_in, pl_lst_out, pl_cnt_out, &pl_cnt_vrl);
+
+    /*we can safely free these  lists */
+    pl_lst_in=nco_poly_lst_free(pl_lst_in,pl_cnt_in);    
+    pl_lst_out=nco_poly_lst_free(pl_lst_out,pl_cnt_out);
+
   }
-    
-  lnk_nbr=1L; /* [nbr] Number of overlap polygons */
-  grd_crn_nbr_vrl=1L; /* [nbr] Maximum number of vertices in overlap polygon */
+
+
+  /* fnd grd_crn_nbr from list of overlap polygons */
+  grd_crn_nbr_vrl=0;
+  for(idx=0;idx < pl_cnt_vrl;idx++)
+    if( pl_lst_vrl[idx]->crn_nbr > grd_crn_nbr_vrl )
+      grd_crn_nbr_vrl=pl_lst_vrl[idx]->crn_nbr;
+
+  lnk_nbr=pl_cnt_vrl; 
+                  
+
   
   lat_crn_vrl=(double *)nco_malloc_dbg(lnk_nbr*grd_crn_nbr_vrl*nco_typ_lng(NC_DOUBLE),fnc_nm,"Unable to malloc() value buffer for overlap latitude corners");
   lat_ctr_vrl=(double *)nco_malloc_dbg(lnk_nbr*nco_typ_lng(NC_DOUBLE),fnc_nm,"Unable to malloc() value buffer for overlap latitude centers");
@@ -833,6 +859,30 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
   for(idx=0;idx<grd_sz_in;idx++) frc_in[idx]=0.0;
   for(idx=0;idx<grd_sz_out;idx++) frc_out[idx]=0.0;
 
+  /* populate lat_crn_vrl and lon_crn_vrl from polygon list */
+  for(idx=0; idx< pl_cnt_vrl; idx++){
+    
+    size_t lcl_crn_nbr = pl_lst_vrl[idx]->crn_nbr; 
+    double *lat_crn_vrl_ptr=lat_crn_vrl + idx*grd_crn_nbr_vrl;
+    double *lon_crn_vrl_ptr=lon_crn_vrl + idx*grd_crn_nbr_vrl;
+    
+    /*manually copy stuff over */
+    memcpy(lon_crn_vrl_ptr, pl_lst_vrl[idx]->dp_x, lcl_crn_nbr * sizeof(double));
+    memcpy(lat_crn_vrl_ptr, pl_lst_vrl[idx]->dp_y, lcl_crn_nbr * sizeof(double));
+
+    /* fill remaining values with last values */
+    if(lcl_crn_nbr < grd_crn_nbr_vrl)
+      for(jdx=lcl_crn_nbr  ; jdx<grd_crn_nbr_vrl ;jdx++){             
+        *++lon_crn_vrl_ptr=pl_lst_vrl[idx]->dp_x[lcl_crn_nbr-1];
+        *++lat_crn_vrl_ptr=pl_lst_vrl[idx]->dp_y[lcl_crn_nbr-1];
+      }
+	
+  }  
+
+  /* write out overlap mesh for debugging purposes */  
+  nco_msh_wrt("test-wrt-vrl.nc", lnk_nbr, grd_crn_nbr_vrl, lat_crn_vrl, lon_crn_vrl);
+  
+  
   if(lat_crn_vrl) lat_crn_vrl=(double *)nco_free(lat_crn_vrl);
   if(lat_ctr_vrl) lat_ctr_vrl=(double *)nco_free(lat_ctr_vrl);
   if(lon_crn_vrl) lon_crn_vrl=(double *)nco_free(lon_crn_vrl);
@@ -843,6 +893,10 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
   *row_dst_adr_ptr=row_dst_adr;
   *lnk_nbr_ptr=lnk_nbr;
 
+  if(pl_cnt_vrl)
+    pl_lst_vrl=nco_poly_lst_free(pl_lst_vrl,pl_cnt_vrl);
+
+  
   return rcd;
 } /* !nco_msh_mk() */
 
