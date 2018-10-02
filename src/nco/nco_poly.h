@@ -5,6 +5,8 @@
 #ifndef NCO_POLY_H
 #define NCO_POLY_H 
 
+#include "kd.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,7 +21,10 @@ extern "C" {
     double *dp_y;    /* y vertices */
     double *dp_xyz;  /* maybe useful for 3D stuff */ 
     double area;  
-  
+
+    double dp_x_minmax[2];
+    double dp_y_minmax[2];
+    
     int  stat;     
     int crn_nbr; /* number of vertices */
     int mem_flg; /* [flg]    */ 
@@ -49,12 +54,26 @@ extern "C" {
   nco_poly_dpl
   (poly_sct *pl);
 
+  void nco_poly_add_minmax
+  (poly_sct *pl);
+	
+  
   void
   nco_poly_prn
   (int style,
    poly_sct *pl);
 
+  
+  poly_sct*
+  nco_poly_do_vrl(
+  poly_sct *pl_in,
+  poly_sct *pl_out);
 
+  
+
+/************************ functions that manipulate lists of polygons ****************************************************/
+
+  
    poly_sct**             /* [O] [nbr] Array of poly_sct */   
    nco_poly_lst_mk(
    double *area, /* I [sr] Area of source grid */
@@ -73,6 +92,18 @@ extern "C" {
    int arr_nbr);
 
 
+   poly_sct **
+   nco_poly_mk_vrl_lst(   /* create overlap mesh */
+   poly_sct ** pl_lst_in,
+   int pl_cnt_in,
+   poly_sct ** pl_lst_out,
+   int pl_cnt_out,
+   int *pl_cnt_vrl);
+
+
+   		   
+      
+  
   
 #ifdef __cplusplus
 } /* end extern "C" */

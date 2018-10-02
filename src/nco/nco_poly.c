@@ -38,6 +38,13 @@ nco_poly_init
   pl->dp_x=(double*)NULL_CEWI;
   pl->dp_y=(double*)NULL_CEWI;
   pl->dp_xyz=(double*)NULL_CEWI;
+
+  pl->dp_x_minmax[0]=0.0;
+  pl->dp_x_minmax[1]=0.0;
+
+  pl->dp_y_minmax[0]=0.0;
+  pl->dp_y_minmax[1]=0.0;
+
   
   pl->stat=0;
   pl->area=0.0;
@@ -72,6 +79,24 @@ nco_poly_dpl
   memcpy(pl_cpy->dp_x, pl->dp_x, (size_t)crn_nbr_in* sizeof(double));
   memcpy(pl_cpy->dp_y, pl->dp_y, (size_t)crn_nbr_in* sizeof(double));  
 
+  pl->dp_x_minmax[0];
+  pl->dp_x_minmax[1]=0.0;
+
+  pl->dp_y_minmax[0]=0.0;
+  pl->dp_y_minmax[1]=0.0;
+
+
+  pl_cpy->dp_x_minmax[0] = pl->dp_x_minmax[0];
+  pl_cpy->dp_x_minmax[1] = pl->dp_x_minmax[1];
+
+  pl_cpy->dp_y_minmax[0] = pl->dp_y_minmax[0];
+  pl_cpy->dp_y_minmax[1] = pl->dp_y_minmax[1];
+
+
+  
+
+
+  
   return pl_cpy;
   
 } 
@@ -136,6 +161,53 @@ nco_poly_init_lst
 
 }  
 
+void nco_poly_add_minmax
+(poly_sct *pl)
+{  
+  
+  int idx;
+  int sz;
+
+
+  sz=pl->crn_nbr; 
+  
+  pl->dp_x_minmax[0]=DBL_MAX;
+  pl->dp_x_minmax[1]=-DBL_MAX;
+
+  pl->dp_y_minmax[0]=DBL_MAX;
+  pl->dp_y_minmax[1]=-DBL_MAX;
+
+
+  
+  for(idx=0; idx<sz;idx++)
+  {
+    /* min */
+    if( pl->dp_x[idx] < pl->dp_x_minmax[0] )
+      pl->dp_x_minmax[0] = pl->dp_x[idx]; 
+
+    /* max */
+    if( pl->dp_x[idx] > pl->dp_x_minmax[1] )
+          pl->dp_x_minmax[1] = pl->dp_x[idx];  
+
+    /* min */
+    if( pl->dp_y[idx] < pl->dp_y_minmax[0] )
+      pl->dp_y_minmax[0] = pl->dp_y[idx]; 
+
+    /* max */
+    if( pl->dp_y[idx] > pl->dp_y_minmax[1] )
+          pl->dp_y_minmax[1] = pl->dp_y[idx];  
+
+    
+    
+  }
+
+  return; 
+  
+
+}  
+
+
+
 
 void
 nco_poly_prn
@@ -158,6 +230,8 @@ nco_poly_prn
       for(idx=0; idx<pl->crn_nbr; idx++)
 	(void)fprintf(stdout,"%20.14f, ",pl->dp_y[idx]);
       (void)fprintf(stdout,"\n");
+
+      (void)fprintf(stdout,"min/max x( %g, %g) y(%g %g)\n", pl->dp_x_minmax[0], pl->dp_x_minmax[1], pl->dp_y_minmax[0], pl->dp_y_minmax[1]);       
       
       break;
 
@@ -175,6 +249,28 @@ nco_poly_prn
      
 }
 
+
+poly_sct*
+nco_poly_do_vrl(
+poly_sct *pl_in,
+poly_sct *pl_out){
+
+  
+ poly_sct *pl_vrl;
+  
+
+  /* for now just copy pl_in so  we can test other functions */
+ pl_vrl=nco_poly_dpl( pl_in);
+
+ return pl_vrl;
+  
+}  
+
+
+
+
+
+/************************ functions that manipulate lists of polygons ****************************************************/
 
 poly_sct **             /* [O] [nbr]  size of array */   
 nco_poly_lst_mk(
@@ -216,6 +312,9 @@ int *pl_nbr)
       if(!pl)
 	continue;
 
+      /* add min max */
+      nco_poly_add_minmax(pl);
+      
       pl_lst[idx_cnt++]=pl;     
       
     }
@@ -245,3 +344,145 @@ int arr_nbr)
    return pl_lst;
 
 }  
+
+
+void
+nco_poly_set_priority(
+int nbr_lst,		      
+KDPriority *list){		      
+
+int idx;
+
+ for(idx=0;idx<nbr_lst;idx++){
+
+   list[idx].dist = 1.1;
+   list[idx].elem = (KDElem*)NULL;
+ }  
+
+ return ; 
+
+}
+  
+
+
+poly_sct **
+nco_poly_mk_vrl_lst(   /* create overlap mesh */
+ poly_sct ** pl_lst_in,
+ int pl_cnt_in,
+ poly_sct ** pl_lst_out,
+ int pl_cnt_out,
+ int *pl_cnt_vrl_ret){
+
+/* just duplicate output list to overlap */
+
+ int idx;
+ int jdx;
+ int sz;
+ int max_nbr_vrl=200; 
+ int pl_cnt_vrl=0;
+ 
+ char *chr_ptr;
+ char fnc_nm[]="nco_poly_mk_vrl()";  
+
+ kd_box size;
+
+ poly_sct ** pl_lst_vrl=NULL_CEWI;
+ 
+ KDElem *my_elem;
+ KDTree *rtree;
+
+ KDPriority *list;
+
+  list = (KDPriority *)nco_calloc(sizeof(KDPriority),(size_t)max_nbr_vrl); 
+ 
+  printf("INFO - entered function nco_poly_mk_vrl\n"); 
+ 
+  /* create kd_tree from output polygons */
+  rtree=kd_create();
+
+
+   /* populate kd_tree */
+  for(idx=0 ; idx<pl_cnt_out;idx++){
+    
+       
+    my_elem=(KDElem*)nco_calloc((size_t)1,sizeof (KDElem) );
+   
+    size[KD_LEFT]  =  pl_lst_out[idx]->dp_x_minmax[0];
+    size[KD_RIGHT] =  pl_lst_out[idx]->dp_x_minmax[1];
+
+    size[KD_BOTTOM] = pl_lst_out[idx]->dp_y_minmax[0];
+    size[KD_TOP]    = pl_lst_out[idx]->dp_y_minmax[1];    
+
+    //chr_ptr=(char*)pl_lst_out[idx];
+
+    kd_insert(rtree, (kd_generic)pl_lst_out[idx], size, (char*)my_elem);
+
+  }
+
+  /* rebuild tree for faster access */
+  kd_rebuild(rtree);
+
+  //printf("about to output kd_tree\n");
+  // kd_print(rtree);
+
+
+  
+/* start main loop over input polygons */ 
+ for(idx=0 ; idx<pl_cnt_in ;idx++ )
+ { 
+   int cnt_vrl=0;
+
+   (void)nco_poly_set_priority(max_nbr_vrl,list); 
+   /* get bounds of polygon in */   
+    size[KD_LEFT]  =  pl_lst_in[idx]->dp_x_minmax[0];
+    size[KD_RIGHT] =  pl_lst_in[idx]->dp_x_minmax[1];
+
+    size[KD_BOTTOM] = pl_lst_in[idx]->dp_y_minmax[0];
+    size[KD_TOP]    = pl_lst_in[idx]->dp_y_minmax[1];    
+
+    /* find overlapping polygons */
+    cnt_vrl=kd_nearest_intersect(rtree, size, max_nbr_vrl,list );
+
+    nco_poly_prn(0, pl_lst_in[idx] );
+    fprintf(stdout,"%s: number of overlaps=%d -overlapping polygons to follow\n/**************************/\n"  , fnc_nm,  cnt_vrl);
+
+   
+    /* for testing purposes just use first overlap polygon */
+    cnt_vrl= ( cnt_vrl  ? 1: 0);
+    
+    for(jdx=0; jdx <cnt_vrl ;jdx++){
+
+      poly_sct *pl_vrl=(poly_sct*)NULL_CEWI;	 
+      poly_sct *pl_out=(poly_sct*)list[jdx].elem->item;           ;
+
+      nco_poly_prn(0, pl_out);           
+     
+  
+      pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
+
+      if(pl_vrl){
+	pl_lst_vrl=(poly_sct**)nco_realloc(pl_lst_vrl, sizeof(poly_sct*) * (pl_cnt_vrl+1));
+	pl_lst_vrl[pl_cnt_vrl]=pl_vrl;
+	pl_cnt_vrl++;
+      }
+
+    }
+
+
+    
+ }   
+
+
+ kd_destroy(rtree,NULL);
+
+ list = (KDPriority *)nco_free(list);
+
+ /* return size of list */
+ *pl_cnt_vrl_ret=pl_cnt_vrl;
+
+ 
+ return pl_lst_vrl;
+
+}  
+
+
