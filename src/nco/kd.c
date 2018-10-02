@@ -974,6 +974,7 @@ KDElem *find_item(KDElem *elem, int disc, kd_generic item, kd_box size, int sear
 				items_elem->other_bound = (((disc+1)%4 & 0x2) ? size[vert] : size[vert+2]);
 				items_elem->sons[0] = 0;
 				items_elem->sons[1] = 0;
+				items_elem->item = item;
 				
 			}
 			else
@@ -1500,7 +1501,7 @@ void pr_tree(KDElem *elem, int disc, int depth)
     for (i = 0;  i < depth;  i++)
       putchar(' ');
     
-    printf("%ld: %.14f %.14f %.14f (", (long) elem->item, elem->lo_min_bound, elem->other_bound, elem->hi_max_bound);
+    printf("%p: %.14f %.14f %.14f (", (long) elem->item, elem->lo_min_bound, elem->other_bound, elem->hi_max_bound);
     
     for (i = 0;  i < KD_BOX_MAX;  i++) {
 	if (i == disc) putchar('*');
@@ -2489,7 +2490,7 @@ int kd_neighbour_intersect(KDElem *node, kd_box Xq, int m, KDPriority *list, kd_
   {
     for(idx=0 ; idx<m ;idx++)
     {
-      if(!list[idx].elem)
+      if(list[idx].elem == (KDElem*)NULL)
 	{
 	  list[idx].elem=node;
 	  list[idx].dist=1.1;
@@ -2564,25 +2565,15 @@ int kd_nearest(KDTree* realTree, double x, double y, int m, KDPriority **alist)
 	return kd_neighbour(realTree->tree,Xq,m,*alist,Bp,Bn);
 }
 
-int kd_nearest_intersect(KDTree* realTree, kd_box Xq, int m, KDPriority **alist)
+int kd_nearest_intersect(KDTree* realTree, kd_box Xq, int m, KDPriority *list)
 {
 	int idx;
 	int node_cnt;
+	int ret_cnt=0;
+	
         kd_box Bp,Bn;
 
-	KDPriority *list;
-	
-	list = (KDPriority *)calloc(sizeof(KDPriority),m);
-        // list=*alist;     
-
-	for(idx=0;idx<m;idx++)
-	{
-	  // (*alist)[idx].dist = 1.79769313486231470e+308;
-	  list[idx].dist = DBL_MAX;
-	  //(*alist)[idx].dist = 4.0;
-	  list[idx].elem = (KDElem*)NULL;
-	}
-
+    
         Bp[0]=realTree->extent[0];
 	Bp[1]=realTree->extent[1];
 
@@ -2593,21 +2584,25 @@ int kd_nearest_intersect(KDTree* realTree, kd_box Xq, int m, KDPriority **alist)
 	
 	node_cnt= kd_neighbour_intersect(realTree->tree,Xq,m,list,Bp,Bn);
 
-	fprintf(stderr,"Nearest Search: visited %d nodes to find the %d closest objects.\n", node_cnt, m);
-	for(idx=0;idx<m;idx++)
-	{
-	  if(list[idx].elem && list[idx].elem->size)
-	      (void)fprintf(stderr,"Nearest Neighbor: dist to center: %f units. elem=%ld. item=%ld. x(%.14f,%.14f) y(%.14f,%.14f)\n",
+        for(idx=0; idx<m;idx++)
+          if(list[idx].elem ) ret_cnt++;
+
+	
+        if(nco_dbg_lvl_get() >= nco_dbg_crr  ) {
+	  
+	  fprintf(stderr,"Nearest Search: visited %d nodes to find the %d closest objects.\n", node_cnt, m);
+	  for(idx=0;idx<ret_cnt;idx++)
+	  {
+	       (void)fprintf(stderr,"Nearest Neighbor: dist to center: %f units. elem=%ld. item=%p. x(%.14f,%.14f) y(%.14f,%.14f)\n",
 				list[idx].dist,
-			        (unsigned long)list[idx].elem,
-			        "*",    //(long)list[idx].elem->item,
+			        list[idx].elem,
+			        list[idx].elem->item,
 				list[idx].elem->size[KD_LEFT],
 				list[idx].elem->size[KD_RIGHT],
 				list[idx].elem->size[KD_BOTTOM],
 				list[idx].elem->size[KD_TOP]);
-	}
-	free(list);
-
-        return 1;
+	  }
+        }
+        return ret_cnt;
 	
 }
