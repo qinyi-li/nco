@@ -14,6 +14,9 @@
 
 #include <math.h>
 
+#include <sys/param.h>
+
+#include "nco.h"
 
 #define KD_LEFT		0
 #define KD_BOTTOM	1
@@ -73,8 +76,8 @@
 #define RCDR(list1, list2) \
   (   (list1) ? ((  (list1)->sons[0] = (list2)), (list1)) : (list2)  )
 
-// #define MIN(a, b)	((a) < (b) ? (a) : (b))
-// #define MAX(a, b)	((a) > (b) ? (a) : (b))
+//#define MIN(a, b)	((a) < (b) ? (a) : (b))
+//#define MAX(a, b)	((a) > (b) ? (a) : (b))
 #define KDABS(a)		((a) < 0 ? -(a) : (a))
 
 #define KD_GROWSIZE(s)	10	/* Linear expansion  */
@@ -195,7 +198,7 @@ void kd_badness (KDTree*);
 KDTree* kd_rebuild ( KDTree* );
 
 int kd_nearest (KDTree* tree, double x, double y, int m, KDPriority **alist);
-int kd_nearest_intersect(KDTree* realTree, kd_box Xq, int m, KDPriority **alist);
+int kd_nearest_intersect(KDTree* realTree, kd_box Xq, int m, KDPriority *alist);
 void kd_print_nearest (KDTree* tree, double x, double y, int m);
 
 
