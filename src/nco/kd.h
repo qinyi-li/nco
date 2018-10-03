@@ -76,8 +76,16 @@
 #define RCDR(list1, list2) \
   (   (list1) ? ((  (list1)->sons[0] = (list2)), (list1)) : (list2)  )
 
-//#define MIN(a, b)	((a) < (b) ? (a) : (b))
-//#define MAX(a, b)	((a) > (b) ? (a) : (b))
+
+/* maybe we  have sys/param maybe we dont */
+#ifndef MIN
+#define MIN(a, b)	((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#define MAX(a, b)	((a) > (b) ? (a) : (b))
+#endif
+
 #define KDABS(a)		((a) < 0 ? -(a) : (a))
 
 #define KD_GROWSIZE(s)	10	/* Linear expansion  */
