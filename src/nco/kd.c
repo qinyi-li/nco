@@ -161,7 +161,7 @@ KDElem *kd_new_node(kd_generic item, kd_box size, double lomin, double himax, do
 {
     KDElem *newElem;
 
-    newElem = (KDElem*)malloc(sizeof (KDElem));
+    newElem = (KDElem*)nco_malloc(sizeof (KDElem));
     newElem->item = item;
     newElem->size[0] = size[0];
     newElem->size[1] = size[1];
@@ -190,7 +190,7 @@ KDTree * kd_create(void)
 {
     KDTree *newTree;
 	
-    newTree = (KDTree*)malloc( sizeof(KDTree));
+    newTree = (KDTree*)nco_malloc( sizeof(KDTree));
     newTree->tree = (KDElem *) NULL;
     newTree->item_count = newTree->dead_count = 0;
     return newTree;
@@ -332,7 +332,7 @@ KDElem *load_items(int (*itemfunc)(kd_generic arg, kd_generic *val, kd_box size)
     extent[KD_RIGHT] = extent[KD_TOP] = INT_MIN;
     for (;;)
 	{
-	        new_item = (KDElem*)malloc(sizeof(KDElem));
+	        new_item = (KDElem*)nco_malloc(sizeof(KDElem));
 		if ((*itemfunc)(arg, &new_item->item, new_item->size))
 		{
 			if (!new_item->item) add_flag = 0;
@@ -841,13 +841,13 @@ void NEW_PATH(KDElem *elem)
 		if (path_alloc == 0)
 		{
 			path_alloc = PATH_INIT;
-			path_to_item = (KDElem**)malloc( sizeof(  KDElem *)*path_alloc);
+			path_to_item = (KDElem**)nco_malloc( sizeof(  KDElem *)*path_alloc);
 		}
 		else
 		{
 			path_alloc += PATH_INCR;
 			//path_to_item = REALLOC(KDElem *, path_to_item, path_alloc);
-			path_to_item= (KDElem**)realloc(path_to_item, sizeof(  KDElem *)*path_alloc);
+			path_to_item= (KDElem**)nco_realloc(path_to_item, sizeof(  KDElem *)*path_alloc);
 
 		}
 	}
@@ -1267,7 +1267,7 @@ void kd_push(KDState *gen, KDElem *elem, short disc)
     /* Allocate more space if necessary */
     if (gen->top_index >= gen->stack_size) {
 	gen->stack_size += KD_GROWSIZE(gen->stack_size);
-	gen->stk = (KDSave*)realloc( gen->stk, sizeof(KDSave)*gen->stack_size);
+	gen->stk = (KDSave*)nco_realloc( gen->stk, sizeof(KDSave)*gen->stack_size);
     }
     gen->stk[gen->top_index].disc = disc;
     gen->stk[gen->top_index].state = KD_THIS_ONE;
@@ -1285,7 +1285,7 @@ void kd_pushb(KDState *gen, KDElem* elem, short dk, kd_box Bxn, kd_box Bxp)
 { 
     if ((gen)->top_index >= (gen)->stack_size) {                     
 	(gen)->stack_size += KD_GROWSIZE((gen)->stack_size);	     
-	(gen)->stk = (KDSave*)realloc( gen->stk, sizeof(KDSave)*gen->stack_size); 
+	(gen)->stk = (KDSave*)nco_realloc( gen->stk, sizeof(KDSave)*gen->stack_size); 
     }
     
     (gen)->stk[(gen)->top_index].disc = (dk);		     	     
@@ -1309,7 +1309,7 @@ void kd_pushb(KDState *gen, KDElem* elem, short dk, kd_box Bxn, kd_box Bxp)
 #define kd_pushb(gen, elem, dk, Bxn, Bxp) \
     if ((gen)->top_index >= (gen)->stack_size) {                     \
 	(gen)->stack_size += KD_GROWSIZE((gen)->stack_size);	     \
-	(gen)->stk = (KDSave*)realloc( gen->stk, sizeof(KDSave)*gen->stack_size); \
+	(gen)->stk = (KDSave*)nco_realloc( gen->stk, sizeof(KDSave)*gen->stack_size); \
     }								     \
     (gen)->stk[(gen)->top_index].disc = (dk);		     	     \
     (gen)->stk[(gen)->top_index].state = KD_THIS_ONE;		     \
@@ -1344,7 +1344,7 @@ kd_gen kd_start(KDTree*  realTree, kd_box area)
     KDState *newState;
     int idx;
 
-    newState = (KDState*)malloc(sizeof(KDState));
+    newState = (KDState*)nco_malloc(sizeof(KDState));
 
     kd_data_tries = 0;
     for (idx = 0;  idx < KD_BOX_MAX;  idx++)
@@ -1352,7 +1352,7 @@ kd_gen kd_start(KDTree*  realTree, kd_box area)
 
     newState->stack_size = KD_INIT_STACK;
     newState->top_index = 0;
-    newState->stk = (KDSave*)malloc(sizeof(KDSave) *  KD_INIT_STACK);
+    newState->stk = (KDSave*)nco_malloc(sizeof(KDSave) *  KD_INIT_STACK);
 
     /* Initialize search state */
     if (realTree)
@@ -1733,7 +1733,7 @@ int find_min_max_node(int j, KDElem **kd_minval_node, KDElem **kd_minval_nodesda
     double kd_minval = (*kd_minval_node)->size[j];
     KDState *realGen;
 	
-    realGen = (KDState*)malloc(sizeof(KDState));
+    realGen = (KDState*)nco_malloc(sizeof(KDState));
 	
     kd_data_tries = 0;
 	
@@ -2058,7 +2058,7 @@ void kd_print_nearest(KDTree* tree, double x, double y, int m)
 				list[i].elem->size[KD_BOTTOM],
 				list[i].elem->size[KD_TOP]);
 	}
-	free(list);
+	nco_free(list);
 }
 
 
@@ -2127,13 +2127,13 @@ int  kd_neighbour(KDElem *node, kd_box Xq, int m, KDPriority *list, kd_box Bp, k
     register KDElem *top_item;
 
     
-    realGen = (KDState*)malloc( sizeof(KDState));
+    realGen = (KDState*)nco_malloc( sizeof(KDState));
 	
     kd_data_tries = 0;
 	
     realGen->stack_size = KD_INIT_STACK;
     realGen->top_index = 0;
-    realGen->stk = (KDSave*)malloc(sizeof(KDSave)* KD_INIT_STACK);
+    realGen->stk = (KDSave*)nco_malloc(sizeof(KDSave)* KD_INIT_STACK);
 
     /* Initialize search state */
     if (node)
@@ -2309,13 +2309,13 @@ int kd_neighbour_intersect_try(KDElem *node, kd_box Xq, int m, KDPriority *list,
     register KDElem *top_item;
 
     
-    realGen = (KDState*)malloc( sizeof(KDState));
+    realGen = (KDState*)nco_malloc( sizeof(KDState));
 	
     kd_data_tries = 0;
 	
     realGen->stack_size = KD_INIT_STACK;
     realGen->top_index = 0;
-    realGen->stk = (KDSave*)malloc(sizeof(KDSave)* KD_INIT_STACK);
+    realGen->stk = (KDSave*)nco_malloc(sizeof(KDSave)* KD_INIT_STACK);
 
     /* Initialize search state */
     if (node)
@@ -2539,7 +2539,7 @@ int kd_nearest(KDTree* realTree, double x, double y, int m, KDPriority **alist)
 	Xq[KD_BOTTOM] = y;
 	Xq[KD_RIGHT] = x;
 	Xq[KD_TOP] = y;
-	*alist = (KDPriority *)calloc(sizeof(KDPriority),m);
+	*alist = (KDPriority *)nco_calloc(sizeof(KDPriority),m);
 	for(idx=0;idx<m;idx++)
 	{
 	  // (*alist)[idx].dist = 1.79769313486231470e+308;
