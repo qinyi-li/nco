@@ -51,7 +51,7 @@ static char *kd_pkg_name = "ncks-kd_tree";
 
 static int kd_data_tries;
 
-static int kd_build_depth = 100000; /* can you imagine a tree deeper than this? */
+static int kd_build_depth = 1000000; /* can you imagine a tree deeper than this? */
 
 static long kddel_number_tried=0;
 static long kddel_number_deld=0;
@@ -2045,14 +2045,14 @@ void kd_print_nearest(KDTree* tree, double x, double y, int m)
 	int xz,i;
 	
 	xz = kd_nearest(tree, x, y, m, &list);
-	fprintf(stderr,"Nearest Search: visited %d nodes to find the %d closest objects.\n", xz, m);
+	fprintf(stdout,"Nearest Search: visited %d nodes to find the %d closest objects.\n", xz, m);
 	for(i=0;i<m;i++)
 	{
 	  if(list[i].elem && list[i].elem->size)
-	      (void)fprintf(stderr,"Nearest Neighbor: dist to center: %f units. elem=%ld. item=%ld. x(%.14f,%.14f) y(%.14f,%.14f)\n",
+	      (void)fprintf(stdout,"Nearest Neighbor: dist to center: %f units. elem=%ld. item=%p. x(%.14f,%.14f) y(%.14f,%.14f)\n",
 				list[i].dist,
 			        (unsigned long)list[i].elem,
-			        "*",    //(long)list[i].elem->item,
+			        list[i].elem->item,
 				list[i].elem->size[KD_LEFT],
 				list[i].elem->size[KD_RIGHT],
 				list[i].elem->size[KD_BOTTOM],
