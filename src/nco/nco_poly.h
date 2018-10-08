@@ -5,8 +5,16 @@
 #ifndef NCO_POLY_H
 #define NCO_POLY_H 
 
-#include "kd.h"
+/* Personal headers */
+#include "nco.h" /* netCDF Operator (NCO) definitions */
+#include "nco_mmr.h" /* Memory management */
+#include "nco_omp.h" /* OpenMP utilities */
+#include "nco_rgr.h" /* Regridding */
+#include "nco_sld.h" /* Swath-Like Data */
+#include "nco_sng_utl.h" /* String utilities */
 
+#include "kd.h"
+#include "nco_vrl.h"
 
 #ifdef __cplusplus
 extern "C" {
