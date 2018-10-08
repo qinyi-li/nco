@@ -1,5 +1,6 @@
 #include "nco_poly.h"
 
+#include "nco_vrl.c"
 
 poly_sct *
 nco_poly_free
@@ -249,19 +250,89 @@ nco_poly_prn
      
 }
 
+void
+nco_poly_new_2_old(
+poly_sct* pl,
+tPolygond P,		   
+int *nbr_v)
+{  
+  int idx;
+  int sz;
 
+  sz=pl->crn_nbr;
+  for(idx; idx<sz; idx++)
+  { 
+    P[idx][X]=pl->dp_x[idx];
+    P[idx][Y]=pl->dp_y[idx];
+  }
+  
+  *nbr_v=sz;
+  return;   
+}
+
+poly_sct*
+nco_poly_old_2_new(
+tPolygond P,		   
+int nbr_v)
+{
+  int idx;
+  int sz;
+  poly_sct *pl;
+  
+  pl=nco_poly_init_crn(nbr_v);
+
+  for(idx=0;idx<nbr_v;idx++)
+  {
+
+    pl->dp_x[idx]=P[idx][X];
+    pl->dp_y[idx]=P[idx][Y];
+
+  }
+
+  nco_poly_add_minmax(pl);
+
+  return pl;
+  
+}
+
+  
 poly_sct*
 nco_poly_do_vrl(
 poly_sct *pl_in,
 poly_sct *pl_out){
 
+ int iret=0; 
+ int nbr_p=0;
+ int nbr_q=0;
+ int nbr_r=0;
+ 
   
  poly_sct *pl_vrl;
   
 
-  /* for now just copy pl_in so  we can test other functions */
- pl_vrl=nco_poly_dpl( pl_in);
+ tPolygond P ;
+ tPolygond Q ;
+ tPolygond R ;
 
+ nco_poly_new_2_old(pl_in,  P, &nbr_p);
+ nco_poly_new_2_old(pl_out, Q, &nbr_q);
+   
+ 
+ 
+  /* for now just copy pl_in so  we can test other functions */
+ // pl_vrl=nco_poly_dpl( pl_in);
+  
+
+ iret = ConvexIntersect(P, Q, R, nbr_p, nbr_q, &nbr_r);
+
+ if(iret != EXIT_SUCCESS || nbr_r <3 )
+   return (poly_sct*)NULL_CEWI;
+ 
+ 
+ 
+ pl_vrl=nco_poly_old_2_new(R, nbr_r); 
+
+ 
  return pl_vrl;
   
 }  
@@ -296,7 +367,7 @@ int *pl_nbr)
 
     pl_lst=(poly_sct**)nco_malloc( (size_t)grd_sz * sizeof (poly_sct*) );
     
-    printf("About to print poly sct\n");
+    // printf("About to print poly sct   grd_sz=%d grd_crn_nbr=%d\n", grd_sz, grd_crn_nbr);
     for(idx=0;idx<grd_sz; idx++) 
     {
       /* check mask and area */
@@ -314,8 +385,9 @@ int *pl_nbr)
 
       /* add min max */
       nco_poly_add_minmax(pl);
-      
-      pl_lst[idx_cnt++]=pl;     
+
+      pl_lst[idx_cnt]=pl;
+      idx_cnt++;
       
     }
     
@@ -362,6 +434,49 @@ int idx;
  return ; 
 
 }
+
+/* substitute function as kd search not working  */
+
+int
+nco_poly_nearest_intersect(
+poly_sct** pl_lst,		   
+int pl_nbr,
+KDPriority *list,	      
+int nbr_lst,
+kd_box Xq)
+{
+  size_t idx=0;
+  size_t jdx=0;
+  kd_box Xm;
+ 
+  
+  for(idx=0; idx<pl_nbr; idx++)
+  { 
+    Xm[KD_LEFT]  =  pl_lst[idx]->dp_x_minmax[0];
+    Xm[KD_RIGHT] =  pl_lst[idx]->dp_x_minmax[1];
+    Xm[KD_BOTTOM] = pl_lst[idx]->dp_y_minmax[0];
+    Xm[KD_TOP]    = pl_lst[idx]->dp_y_minmax[1];    
+
+    if( BOXINTERSECT(Xq, Xm ) )
+    {  
+      for(jdx=0; jdx<nbr_lst; jdx++)
+      {	
+	if(list[jdx].elem == (KDElem*)NULL)
+	 { 
+	   //list[jdx].pl=pl_lst[idx]->item;
+	   list[jdx].elem = (KDElem*)pl_lst[idx];
+	    break;
+	 } 
+         if( jdx==nbr_lst)
+           return nbr_lst;
+      }
+
+    } 
+
+  }
+
+  return jdx;  
+}
   
 
 
@@ -375,10 +490,104 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
 
 /* just duplicate output list to overlap */
 
- int idx;
- int jdx;
+ size_t idx;
+ size_t jdx;
  int sz;
- int max_nbr_vrl=200; 
+ int max_nbr_vrl=1000; 
+ int pl_cnt_vrl=0;
+ 
+ char *chr_ptr;
+ char fnc_nm[]="nco_poly_mk_vrl()";  
+
+ kd_box size;
+
+ poly_sct ** pl_lst_vrl=NULL_CEWI;
+ 
+
+ KDPriority *list;
+
+  list = (KDPriority *)nco_calloc(sizeof(KDPriority),(size_t)max_nbr_vrl); 
+ 
+  printf("INFO - entered function nco_poly_mk_vrl\n"); 
+ 
+
+ fprintf(stdout, "%s:nco_poly_mk_vrl_lst():  INFO About to print INPUT  POLYGONS  %d\n", nco_prg_nm_get(), pl_cnt_in);
+  
+/* start main loop over input polygons */ 
+ for(idx=0 ; idx<pl_cnt_in ;idx++ )
+ { 
+   int cnt_vrl=0;
+
+   (void)nco_poly_set_priority(max_nbr_vrl,list); 
+   /* get bounds of polygon in */   
+    size[KD_LEFT]  =  pl_lst_in[idx]->dp_x_minmax[0];
+    size[KD_RIGHT] =  pl_lst_in[idx]->dp_x_minmax[1];
+
+    size[KD_BOTTOM] = pl_lst_in[idx]->dp_y_minmax[0];
+    size[KD_TOP]    = pl_lst_in[idx]->dp_y_minmax[1];    
+
+    /* find overlapping polygons */
+    
+    /* bombing out at the moment */
+    cnt_vrl=nco_poly_nearest_intersect(pl_lst_out, pl_cnt_out, list, max_nbr_vrl,size);
+
+    
+    nco_poly_prn(1, pl_lst_in[idx] );
+    fprintf(stdout,"%s: input polygon=%d number of overlaps=%d -overlapping polygons to follow\n/**************************/\n"  , fnc_nm,  idx, cnt_vrl);
+
+   
+    /* for testing purposes just use first overlap polygon */
+    //cnt_vrl= ( cnt_vrl  ? 1: 0);
+    for(jdx=0; jdx <cnt_vrl ;jdx++){
+
+      poly_sct *pl_vrl=(poly_sct*)NULL_CEWI;	 
+      poly_sct *pl_out=(poly_sct*)list[jdx].elem;           ;
+
+      nco_poly_prn(1, pl_out);           
+     
+  
+      pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
+
+      if(pl_vrl){
+	pl_lst_vrl=(poly_sct**)nco_realloc(pl_lst_vrl, sizeof(poly_sct*) * (pl_cnt_vrl+1));
+	pl_lst_vrl[pl_cnt_vrl]=pl_vrl;
+	pl_cnt_vrl++;
+      } else
+	fprintf(stdout,"%s:%s no overlap for polygon %d\n ",nco_prg_nm_get(),fnc_nm, jdx  );
+
+    }
+ }   
+
+
+
+ 
+ fprintf(stdout, "%s-nco_poly_mk_vrl_lst(): INFO  number of overlapping polygons %d\n", nco_prg_nm_get(), pl_cnt_vrl);
+
+ list = (KDPriority *)nco_free(list);
+
+ /* return size of list */
+ *pl_cnt_vrl_ret=pl_cnt_vrl;
+
+ 
+ return pl_lst_vrl;
+
+}  
+
+
+poly_sct **
+nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
+ poly_sct ** pl_lst_in,
+ int pl_cnt_in,
+ poly_sct ** pl_lst_out,
+ int pl_cnt_out,
+ int *pl_cnt_vrl_ret){
+
+/* just duplicate output list to overlap */
+
+ size_t idx;
+ size_t jdx;
+ int sz;
+ int max_nbr_vrl=1000; 
  int pl_cnt_vrl=0;
  
  char *chr_ptr;
@@ -399,7 +608,6 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
  
   /* create kd_tree from output polygons */
   rtree=kd_create();
-
 
    /* populate kd_tree */
   for(idx=0 ; idx<pl_cnt_out;idx++){
@@ -422,10 +630,10 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
   /* rebuild tree for faster access */
   kd_rebuild(rtree);
 
-  //printf("about to output kd_tree\n");
-  // kd_print(rtree);
+  printf("about to output kd_tree\n");
+  kd_print(rtree);
 
-
+ fprintf(stdout, "%s:nco_poly_mk_vrl_lst():  INFO About to print INPUT  POLYGONS  %d\n", nco_prg_nm_get(), pl_cnt_in);
   
 /* start main loop over input polygons */ 
  for(idx=0 ; idx<pl_cnt_in ;idx++ )
@@ -441,21 +649,25 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
     size[KD_TOP]    = pl_lst_in[idx]->dp_y_minmax[1];    
 
     /* find overlapping polygons */
+    
+    /* bombing out at the moment */
     cnt_vrl=kd_nearest_intersect(rtree, size, max_nbr_vrl,list );
 
-    nco_poly_prn(0, pl_lst_in[idx] );
-    fprintf(stdout,"%s: number of overlaps=%d -overlapping polygons to follow\n/**************************/\n"  , fnc_nm,  cnt_vrl);
+
+    
+    nco_poly_prn(1, pl_lst_in[idx] );
+    fprintf(stdout,"%s: input polygon=%d number of overlaps=%d -overlapping polygons to follow\n/**************************/\n"  , fnc_nm,  idx, cnt_vrl);
 
    
     /* for testing purposes just use first overlap polygon */
-    cnt_vrl= ( cnt_vrl  ? 1: 0);
-    
+    //cnt_vrl= ( cnt_vrl  ? 1: 0);
     for(jdx=0; jdx <cnt_vrl ;jdx++){
 
       poly_sct *pl_vrl=(poly_sct*)NULL_CEWI;	 
       poly_sct *pl_out=(poly_sct*)list[jdx].elem->item;           ;
 
-      nco_poly_prn(0, pl_out);           
+
+      nco_poly_prn(1, pl_out);           
      
   
       pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
@@ -464,13 +676,16 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
 	pl_lst_vrl=(poly_sct**)nco_realloc(pl_lst_vrl, sizeof(poly_sct*) * (pl_cnt_vrl+1));
 	pl_lst_vrl[pl_cnt_vrl]=pl_vrl;
 	pl_cnt_vrl++;
-      }
+      } else
+	fprintf(stdout,"%s:%s no overlap for polygon %d\n ",nco_prg_nm_get(),fnc_nm, jdx  );
 
     }
-
-
-    
  }   
+
+
+
+ 
+ fprintf(stdout, "%s-nco_poly_mk_vrl_lst(): INFO  number of overlapping polygons %d\n", nco_prg_nm_get(), pl_cnt_vrl);
 
 
  kd_destroy(rtree,NULL);
@@ -484,5 +699,4 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
  return pl_lst_vrl;
 
 }  
-
 
