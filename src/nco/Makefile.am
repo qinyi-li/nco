@@ -108,7 +108,9 @@ nco_var_avg.h \
 nco_var_lst.h \
 nco_var_rth.h \
 nco_var_scv.h \
-nco_var_utl.h
+nco_var_utl.h \
+nco_poly.h    \
+kd.h
 
 lib_LTLIBRARIES = libnco.la
 
@@ -168,7 +170,10 @@ nco_var_avg.c \
 nco_var_lst.c \
 nco_var_rth.c \
 nco_var_scv.c \
-nco_var_utl.c
+nco_var_utl.c \
+nco_poly.c    \
+kd.c
+
 
 TESTS = ${DAP_TESTS}
 
