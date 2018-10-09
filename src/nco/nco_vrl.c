@@ -206,7 +206,6 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
 
    }
    
-   PrintPoly(*r, R);
    return EXIT_SUCCESS;
    
 }
@@ -387,9 +386,16 @@ int AreaSign( tPointd a, tPointd b, tPointd c )
             ( c[0] - a[0] ) * ( b[1] - a[1] );
 
     /* The area should be an integer. */
+    /*
     if      ( area2 >  0.5 ) return  1;
     else if ( area2 < -0.5 ) return -1;
     else                     return  0;
+    */
+    if      ( area2 >  DAREA ) return  1;
+    else if ( area2 < -DAREA ) return -1;
+    else                       return  0;
+
+    
 }
 
 
@@ -483,18 +489,16 @@ int   ReadPoly( tPolygond P )
    return   n;
 }
 
-void PrintPoly( int r, tPolygond R)
+void PrintPoly(tPolygond R, int r)
 {
   int idx;
   
-   printf("\n%%Polygon R:\n");
-   printf("newpath\n");
-   printf("%f\t%f\tmoveto\n", R[0][X], R[0][Y]);
+   printf("Polygon R:\n");
    
-   for( idx = 1; idx < r; idx++ )
-      printf("%f\t%f\tlineto\n", R[idx][X], R[idx][Y]);
+   for( idx = 0; idx < r; idx++ )
+      printf("%20.14f %20.14f\n", R[idx][X], R[idx][Y]);
    
-   printf("closepath stroke\n");
+   printf("End Polygon\n");
 
 
 }  
