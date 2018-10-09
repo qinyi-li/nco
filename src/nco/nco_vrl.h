@@ -14,15 +14,20 @@
 #include "nco_sld.h" /* Swath-Like Data */
 #include "nco_sng_utl.h" /* String utilities */
 
+#define X 0
+#define Y 1
 
 
-  
-#define X       0x0
-#define Y       1
-#define DIM     2               /* Dimension of points */
-#define DSIGMA 1.0e-10d
+/* Dimension of points */
+#define DIM 2
+
+#define DSIGMA 1.0e-14d
+
+/* define minimium area in AreaSign (cross-product) */
+#define DAREA  1.0e-28d  
 
 #define VP_MAX    1000            /* Max # of pts in polygon */
+
 
 
 #ifdef __cplusplus
@@ -31,6 +36,10 @@ extern "C" {
 #endif /* !__cplusplus */
 
 
+
+  
+
+  
 
 typedef enum { Pin, Qin, Unknown } tInFlag;
 typedef int     tPointi[DIM];   /* type integer point */
@@ -68,7 +77,7 @@ tInFlag InOut( tPointd p, tInFlag inflag, int aHB, int bHA );
 
 void    ClosePostscript( void );
 void	PrintSharedSeg( tPointd p, tPointd q );
-void    PrintPoly( int n, tPolygond P );
+void    PrintPoly( tPolygond P, int n );
 //void    PrintPolyd( int r, tPolygond R );
 
 
