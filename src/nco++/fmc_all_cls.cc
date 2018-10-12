@@ -6102,7 +6102,7 @@ var_sct *udunits_cls::regular_fnd(bool &, std::vector<RefAST> &args_vtr, fmc_cls
       int jdx;
       int grid_corners;
       int grid_size;
-      char *prn_str="%.13f,%.13f,0\n";   
+      char *prn_str="%.14f,%.14f,0\n";   
       
 
       if( var_lat->nbr_dim != 2 || var_lon->nbr_dim !=2 || var_lat->type != NC_DOUBLE || var_lon->type != NC_DOUBLE )
@@ -6133,12 +6133,14 @@ var_sct *udunits_cls::regular_fnd(bool &, std::vector<RefAST> &args_vtr, fmc_cls
 	  // KML google world -180.0 /  180.0
           dlon=var_lon->val.dp[ idx*grid_corners+jdx ] ;
 	  dlat=var_lat->val.dp[ idx*grid_corners+jdx ];
-	  
+
+	  (void)fprintf(stdout,prn_str, dlon, dlat);
+	  /*
 	  if( pdlon != dlon &&  pdlat != dlat ){
 	     (void)fprintf(stdout,prn_str, dlon, dlat);
 	     pdlon=dlon; pdlat=dlat;
 	  }
-
+          */  
 	}
 	// output first point again KML demand this ?
 	(void)fprintf(stdout, prn_str, var_lon->val.dp[ idx*grid_corners] ,var_lat->val.dp[ idx*grid_corners]);
