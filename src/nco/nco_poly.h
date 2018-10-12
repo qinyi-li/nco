@@ -77,8 +77,20 @@ extern "C" {
   poly_sct *pl_in,
   poly_sct *pl_out);
 
+
+  nco_bool            /* O [flg] True if point in inside (or on boundary ) of polygon */ 
+  nco_poly_pnt_in_poly( 
+  poly_sct *pl, 		     
+  double x_in,
+  double y_in);
+
+  int             /* O [nbr] returns number of points of pl_out that are inside pl_in */
+  nco_poly_poly_in_poly( 
+  poly_sct *pl_in,
+  poly_sct *pl_out); 		     
   
 
+  
 /************************ functions that manipulate lists of polygons ****************************************************/
 
   

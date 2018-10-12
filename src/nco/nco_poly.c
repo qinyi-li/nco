@@ -207,7 +207,98 @@ void nco_poly_add_minmax
 
 }  
 
+/*******************************************************************************************************/ 
+   /*
+     Algorithm  to check that point is in polygon.
+     for full details please see :
+      http://demonstrations.wolfram.com/AnEfficientTestForAPointToBeInAConvexPolygon 
+   
+     It assumes that the polygon is convex and point order can be clockwise or counterclockwise.
+     If area is zero or almost zero then it is assumed that the point is on a vertex.
+     nb Please note that if two contiguous vertices are identical  then this will also make the area zero 
 
+   */ 
+
+/********************************************************************************************************/
+
+nco_bool            /* O [flg] True if point in inside (or on boundary ) of polygon */ 
+nco_poly_pnt_in_poly( 
+poly_sct *pl_in, 		     
+double x_in,
+double y_in)
+{  
+  int idx;
+  int sz;
+  nco_bool bret=False;
+  nco_bool sign=False;
+  nco_bool dsign=False;
+
+  double area=0.0;
+  
+  /* use a copy as we are modifying it */ 
+  poly_sct *pl; 
+
+  sz=pl_in->crn_nbr;
+  
+  pl=nco_poly_dpl(pl_in);
+
+
+  
+  /* make (x_in,y_in) as origin */
+  for(idx=0 ; idx < sz ; idx++)
+  {  
+    pl->dp_x[idx]-=x_in;
+    pl->dp_y[idx]-=y_in;
+
+  }
+
+  for(idx=0 ; idx < sz ; idx++)
+  {
+    /* for full explanation of algo please 
+     
+    */
+    area=pl->dp_x[(idx+1)%sz] * pl->dp_y[idx] - pl->dp_x[idx] * pl->dp_y[(idx+1)%sz];
+       
+    /*  need some kind of sigma here */ 
+    if(area ==0.0 )
+      { bret=True; break; }
+
+    dsign=(area>0.0);
+
+    if(idx==0)
+      sign=dsign;
+
+    /* we have a sign change so point NOT in Polygon */ 
+    if(dsign != sign)
+      { bret=False; break; }
+
+    bret=True;
+    
+  }
+
+  pl=nco_poly_free(pl);
+  return bret;
+  
+}
+
+int             /* O [nbr] returns number of points of pl_out that are inside pl_in */
+nco_poly_poly_in_poly( 
+poly_sct *pl_in,
+poly_sct *pl_out)
+{  
+  int idx=0;
+  int sz;
+  int cnt_in=0;
+  
+  sz= pl_out->crn_nbr;
+  
+  for(idx=0; idx < sz ; idx++)
+    if( nco_poly_pnt_in_poly(pl_in, pl_out->dp_x[idx], pl_out->dp_y[idx])  )
+      cnt_in++;
+
+
+  return cnt_in;
+}
 
 
 void
@@ -244,7 +335,18 @@ nco_poly_prn
         (void)fprintf(stdout,"{ %20.14f, %20.14f }\n",pl->dp_x[idx], pl->dp_y[idx]);
 
      break;
+
+   case 2:  
+     (void)fprintf(stdout,"%s: crn_nbr=%d\n", nco_prg_nm_get(), pl->crn_nbr);
+     
+     for(idx=0; idx<pl->crn_nbr; idx++)
+        (void)fprintf(stdout,"%20.14f %20.14f\n",pl->dp_x[idx], pl->dp_y[idx]);
+
+     break;
   }
+
+
+
 
   return;
      
@@ -262,8 +364,8 @@ int *nbr_v)
   sz=pl->crn_nbr;
   for(idx; idx<sz; idx++)
   { 
-    P[idx][X]=pl->dp_x[idx];
-    P[idx][Y]=pl->dp_y[idx];
+    P[idx][0]=pl->dp_x[idx];
+    P[idx][1]=pl->dp_y[idx];
   }
   
   *nbr_v=sz;
@@ -284,8 +386,8 @@ int nbr_v)
   for(idx=0;idx<nbr_v;idx++)
   {
 
-    pl->dp_x[idx]=P[idx][X];
-    pl->dp_y[idx]=P[idx][Y];
+    pl->dp_x[idx]=P[idx][0];
+    pl->dp_y[idx]=P[idx][1];
 
   }
 
@@ -325,7 +427,12 @@ poly_sct *pl_out){
 
  iret = ConvexIntersect(P, Q, R, nbr_p, nbr_q, &nbr_r);
 
- if(iret != EXIT_SUCCESS || nbr_r <3 )
+ fprintf(stdout, "ConvexIntersect return value=%d num vertices=%d\n", iret, nbr_r);
+ // PrintPoly(R,nbr_r);
+
+ 
+ //if(iret != EXIT_SUCCESS || nbr_r <3 )
+ if(nbr_r <3 )  
    return (poly_sct*)NULL_CEWI;
  
  
@@ -386,6 +493,13 @@ int *pl_nbr)
       /* add min max */
       nco_poly_add_minmax(pl);
 
+      /*  dont use wrapped polygons for now */
+      /* skip wrapped polygons for now  */
+      if( fabs(pl->dp_x_minmax[1] - pl->dp_x_minmax[0] ) > 179.0 ){
+	pl=nco_poly_free(pl);
+	continue;
+      }
+
       pl_lst[idx_cnt]=pl;
       idx_cnt++;
       
@@ -400,7 +514,6 @@ int *pl_nbr)
     return pl_lst;
  
 }  
-
 poly_sct **
 nco_poly_lst_free(
 poly_sct **pl_lst,
@@ -481,7 +594,7 @@ kd_box Xq)
 
 
 poly_sct **
-nco_poly_mk_vrl_lst(   /* create overlap mesh */
+nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
  poly_sct ** pl_lst_in,
  int pl_cnt_in,
  poly_sct ** pl_lst_out,
@@ -517,7 +630,10 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
  for(idx=0 ; idx<pl_cnt_in ;idx++ )
  { 
    int cnt_vrl=0;
+   int cnt_vrl_on=0;
 
+
+   
    (void)nco_poly_set_priority(max_nbr_vrl,list); 
    /* get bounds of polygon in */   
     size[KD_LEFT]  =  pl_lst_in[idx]->dp_x_minmax[0];
@@ -527,13 +643,17 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
     size[KD_TOP]    = pl_lst_in[idx]->dp_y_minmax[1];    
 
     /* find overlapping polygons */
+
+           
+
     
     /* bombing out at the moment */
     cnt_vrl=nco_poly_nearest_intersect(pl_lst_out, pl_cnt_out, list, max_nbr_vrl,size);
 
-    
-    nco_poly_prn(1, pl_lst_in[idx] );
-    fprintf(stdout,"%s: input polygon=%d number of overlaps=%d -overlapping polygons to follow\n/**************************/\n"  , fnc_nm,  idx, cnt_vrl);
+    fprintf(stdout,"/**************************************************************************/\n" ); 
+    // fprintf(stdout,"%s: input polygon=%d number of overlaps=%d -overlapping polygons to follow\n"  , fnc_nm,  idx, cnt_vrl);
+    nco_poly_prn(2, pl_lst_in[idx] );
+
 
    
     /* for testing purposes just use first overlap polygon */
@@ -542,20 +662,27 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
 
       poly_sct *pl_vrl=(poly_sct*)NULL_CEWI;	 
       poly_sct *pl_out=(poly_sct*)list[jdx].elem;           ;
-
-      nco_poly_prn(1, pl_out);           
+       
+      nco_poly_prn(2, pl_out);           
      
   
       pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
 
       if(pl_vrl){
+	//fprintf(stdout,"%s:%s overlap  polygon %d\n ",nco_prg_nm_get(),fnc_nm, jdx  );
 	pl_lst_vrl=(poly_sct**)nco_realloc(pl_lst_vrl, sizeof(poly_sct*) * (pl_cnt_vrl+1));
 	pl_lst_vrl[pl_cnt_vrl]=pl_vrl;
 	pl_cnt_vrl++;
-      } else
-	fprintf(stdout,"%s:%s no overlap for polygon %d\n ",nco_prg_nm_get(),fnc_nm, jdx  );
+        cnt_vrl_on++;
+	// nco_poly_prn(2, pl_vrl);
+
+      } //else
+	//fprintf(stdout,"%s:%s no overlap for polygon %d\n ",nco_prg_nm_get(),fnc_nm, jdx  );
 
     }
+    fprintf(stdout, "total overlaps=%d for polygon %d - potential overlaps=%d actual overlaps=%d", pl_cnt_vrl,  idx, cnt_vrl, cnt_vrl_on);
+    
+    fprintf(stdout,"/**************************************************************************/\n" ); 
  }   
 
 
@@ -575,7 +702,7 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
 
 
 poly_sct **
-nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
+nco_poly_mk_vrl_lst(   /* create overlap mesh */
  poly_sct ** pl_lst_in,
  int pl_cnt_in,
  poly_sct ** pl_lst_out,
@@ -614,7 +741,7 @@ nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
     
        
     my_elem=(KDElem*)nco_calloc((size_t)1,sizeof (KDElem) );
-   
+ 
     size[KD_LEFT]  =  pl_lst_out[idx]->dp_x_minmax[0];
     size[KD_RIGHT] =  pl_lst_out[idx]->dp_x_minmax[1];
 
@@ -630,8 +757,8 @@ nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
   /* rebuild tree for faster access */
   kd_rebuild(rtree);
 
-  printf("about to output kd_tree\n");
-  kd_print(rtree);
+  //printf("about to output kd_tree\n");
+  //kd_print(rtree);
 
  fprintf(stdout, "%s:nco_poly_mk_vrl_lst():  INFO About to print INPUT  POLYGONS  %d\n", nco_prg_nm_get(), pl_cnt_in);
   
@@ -639,7 +766,8 @@ nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
  for(idx=0 ; idx<pl_cnt_in ;idx++ )
  { 
    int cnt_vrl=0;
-
+   int cnt_vrl_on=0;
+   
    (void)nco_poly_set_priority(max_nbr_vrl,list); 
    /* get bounds of polygon in */   
     size[KD_LEFT]  =  pl_lst_in[idx]->dp_x_minmax[0];
@@ -654,8 +782,8 @@ nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
     cnt_vrl=kd_nearest_intersect(rtree, size, max_nbr_vrl,list );
 
 
-    
-    nco_poly_prn(1, pl_lst_in[idx] );
+    fprintf(stdout,"/************************************************************************************/");
+    nco_poly_prn(2, pl_lst_in[idx] );
     fprintf(stdout,"%s: input polygon=%d number of overlaps=%d -overlapping polygons to follow\n/**************************/\n"  , fnc_nm,  idx, cnt_vrl);
 
    
@@ -667,19 +795,33 @@ nco_poly_mk_vrl_lst_old(   /* create overlap mesh */
       poly_sct *pl_out=(poly_sct*)list[jdx].elem->item;           ;
 
 
-      nco_poly_prn(1, pl_out);           
-     
-  
-      pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
+      nco_poly_prn(2, pl_out);           
+
+      /* check for polygon in polygon first */
+      if( nco_poly_poly_in_poly(pl_lst_in[idx], pl_out) == pl_out->crn_nbr )
+	pl_vrl=nco_poly_dpl(pl_out);
+      else
+        pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
 
       if(pl_vrl){
 	pl_lst_vrl=(poly_sct**)nco_realloc(pl_lst_vrl, sizeof(poly_sct*) * (pl_cnt_vrl+1));
 	pl_lst_vrl[pl_cnt_vrl]=pl_vrl;
 	pl_cnt_vrl++;
-      } else
-	fprintf(stdout,"%s:%s no overlap for polygon %d\n ",nco_prg_nm_get(),fnc_nm, jdx  );
+	cnt_vrl_on++;
+
+        //fprintf(stdout,"Overlap polygon to follow\n");
+	// nco_poly_prn(2, pl_vrl);
+	
+      } 
+
 
     }
+
+
+    fprintf(stdout, "total overlaps=%d for polygon %d - potential overlaps=%d actual overlaps=%d", pl_cnt_vrl,  idx, cnt_vrl, cnt_vrl_on);
+    
+    fprintf(stdout,"/**************************************************************************/\n" ); 
+  
  }   
 
 
