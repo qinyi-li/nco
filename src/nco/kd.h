@@ -17,6 +17,8 @@
 #include <sys/param.h>
 
 #include "nco.h"
+#include "nco_mmr.h" /* Memory management */
+#include "nco_omp.h" /* OpenMP utilities */
 
 #define KD_LEFT		0
 #define KD_BOTTOM	1
