@@ -813,10 +813,13 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
 
     pl_lst_out =nco_poly_lst_mk(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, &pl_cnt_out);
 
+    /*re-rorder each polygon so start point is leftermost(easterly) */
+    nco_poly_re_org_lst(pl_lst_out, pl_cnt_out);
     
     pl_lst_in =nco_poly_lst_mk(area_in, msk_in, lat_ctr_in,lon_ctr_in, lat_crn_in, lon_crn_in, grd_sz_in, (size_t)grd_crn_nbr_in, &pl_cnt_in);
 
-
+    /*re-rorder each polygon so start point is leftermost(easterly) */
+    nco_poly_re_org_lst(pl_lst_in, pl_cnt_in);
 
 
     if(0 && nco_dbg_lvl_get() >= nco_dbg_crr){
