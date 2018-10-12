@@ -14,8 +14,6 @@
 #include "nco_sld.h" /* Swath-Like Data */
 #include "nco_sng_utl.h" /* String utilities */
 
-#define X 0
-#define Y 1
 
 
 /* Dimension of points */

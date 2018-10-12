@@ -109,7 +109,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
       {	
 	   AddPoint(R,r,p );
       	   AddPoint(R,r,q );
-           exit(EXIT_FAILURE);
+           return EXIT_FAILURE;  
       }
 	   
       /* Special case: A & B parallel and separated. */
@@ -229,20 +229,20 @@ char SegSegInt( tPointd a, tPointd b, tPointd c, tPointd d, tPointd p, tPointd q
    char code = '?';    /* Return char characterizing intersection. */
 
    /*printf("%%SegSegInt: a,b,c,d: (%d,%d), (%d,%d), (%d,%d), (%d,%d)\n",
-	a[X],a[Y], b[X],b[Y], c[X],c[Y], d[X],d[Y]);*/
+	a[0],a[1], b[0],b[1], c[0],c[1], d[0],d[1]);*/
 
-   denom = a[X] * ( d[Y] - c[Y] ) +
-           b[X] * ( c[Y] - d[Y] ) +
-           d[X] * ( b[Y] - a[Y] ) +
-           c[X] * ( a[Y] - b[Y] );
+   denom = a[0] * ( d[1] - c[1] ) +
+           b[0] * ( c[1] - d[1] ) +
+           d[0] * ( b[1] - a[1] ) +
+           c[0] * ( a[1] - b[1] );
 
    /* If denom is zero, then segments are parallel: handle separately. */
    if (denom == 0.0)
       return  ParallelInt(a, b, c, d, p, q);
 
-   num =    a[X] * ( d[Y] - c[Y] ) +
-            c[X] * ( a[Y] - d[Y] ) +
-            d[X] * ( c[Y] - a[Y] );
+   num =    a[0] * ( d[1] - c[1] ) +
+            c[0] * ( a[1] - d[1] ) +
+            d[0] * ( c[1] - a[1] );
    
    if ( num == 0.0 || num == denom )
      code = 'v';
@@ -250,9 +250,9 @@ char SegSegInt( tPointd a, tPointd b, tPointd c, tPointd d, tPointd p, tPointd q
    s = num / denom;
    /*printf("num=%lf, denom=%lf, s=%lf\n", num, denom, s);*/
 
-   num = -( a[X] * ( c[Y] - b[Y] ) +
-            b[X] * ( a[Y] - c[Y] ) +
-            c[X] * ( b[Y] - a[Y] ) );
+   num = -( a[0] * ( c[1] - b[1] ) +
+            b[0] * ( a[1] - c[1] ) +
+            c[0] * ( b[1] - a[1] ) );
    
    if ( num == 0.0 || num == denom )
      code = 'v';
@@ -265,8 +265,8 @@ char SegSegInt( tPointd a, tPointd b, tPointd c, tPointd d, tPointd p, tPointd q
    else  if(  s <0.0 || s > 1.0 || t <0.0 || t > 1.0  )
      code = '0';
 
-   p[X] = a[X] + s * ( b[X] - a[X] );
-   p[Y] = a[Y] + s * ( b[Y] - a[Y] );
+   p[0] = a[0] + s * ( b[0] - a[0] );
+   p[1] = a[1] + s * ( b[1] - a[1] );
 
    return code;
 }
@@ -274,7 +274,7 @@ char   ParallelInt( tPointd a, tPointd b, tPointd c, tPointd d, tPointd p, tPoin
 {
 /*   
    printf("ParallelInt: a,b,c,d: (%d,%d), (%d,%d), (%d,%d), (%d,%d)\n",
-	a[X],a[Y], b[X],b[Y], c[X],c[Y], d[X],d[Y]);
+	a[0],a[1], b[0],b[1], c[0],c[1], d[0],d[1]);
 */
   /* Check if collinear */
    if ( AreaSign( a, b, c) == 0  )
@@ -341,8 +341,8 @@ void SubVec( tPointd a, tPointd b, tPointd c )
 
 void  Adi( tPointd p, tPointd a )
 {
-  p[X]=a[X];
-  p[Y]=a[Y];
+  p[0]=a[0];
+  p[1]=a[1];
   /*
    int i;
    for ( i = 0; i < DIM; i++ )
@@ -355,7 +355,7 @@ Prints out the double point of intersection, and toggles in/out flag.
 ---------------------------------------------------------------------*/
 tInFlag InOut( tPointd p, tInFlag inflag, int aHB, int bHA )
 {
-  //printf("%8.2lf %8.2lf lineto\n", p[X], p[Y] );
+  //printf("%8.2lf %8.2lf lineto\n", p[0], p[1] );
 
    /* Update inflag. */
    if      ( aHB > 0)
@@ -372,7 +372,7 @@ tInFlag InOut( tPointd p, tInFlag inflag, int aHB, int bHA )
 int     Advance( int a, int *aa, int n, nco_bool inside, tPointi v )
 {
    if ( inside )
-      printf("%5d    %5d    lineto\n", v[X], v[Y] );
+      printf("%5d    %5d    lineto\n", v[0], v[1] );
    (*aa)++;
    return  (a+1) % n;
 }
@@ -429,10 +429,10 @@ nco_bool Between( tPointd a, tPointd b, tPointd c )
    tPointd      ba, ca;
 
    /* If ab not vertical, check betweenness on x; else on y. */
-   if ( a[X] != b[X] )
-     return (a[X] <= c[X] && c[X] <= b[X])  || (a[X] >= c[X] && c[X] >= b[X] ) ;
+   if ( a[0] != b[0] )
+     return (a[0] <= c[0] && c[0] <= b[0])  || (a[0] >= c[0] && c[0] >= b[0] ) ;
    else
-     return (a[Y] <= c[Y] && c[Y] <= b[Y]) || (a[Y] >= c[Y] && c[Y] >= b[Y] ) ;
+     return (a[1] <= c[1] && c[1] <= b[1]) || (a[1] >= c[1] && c[1] >= b[1] ) ;
 
 }
 
@@ -444,11 +444,11 @@ void AddPoint( tPolygond R, int *r, tPointd P)
 
   
   /* only add  point if its distinct from previous point */ 
-  if ( *r == 0  ||    (fabs(R[*r-1][X] - P[X]) >DSIGMA || fabs(R[*r-1][Y] - P[Y])>DSIGMA) )
+  if ( *r == 0  ||    (fabs(R[*r-1][0] - P[0]) >DSIGMA || fabs(R[*r-1][1] - P[1])>DSIGMA) )
   {  
 
-    R[*r][X] = P[X];
-    R[*r][Y] = P[Y];
+    R[*r][0] = P[0];
+    R[*r][1] = P[1];
     (*r)++;     
     
   }
@@ -496,7 +496,7 @@ void PrintPoly(tPolygond R, int r)
    printf("Polygon R:\n");
    
    for( idx = 0; idx < r; idx++ )
-      printf("%20.14f %20.14f\n", R[idx][X], R[idx][Y]);
+      printf("%20.14f %20.14f\n", R[idx][0], R[idx][1]);
    
    printf("End Polygon\n");
 
@@ -510,19 +510,19 @@ void   OutputPolygons(tPolygond P, tPolygond Q, int n, int m )
    double xmin, ymin, xmax, ymax;
 
    /* Compute Bounding Box for Postscript header. */
-   xmin = xmax = P[0][X];
-   ymin = ymax = P[0][Y];
+   xmin = xmax = P[0][0];
+   ymin = ymax = P[0][1];
    for (i = 1; i < n; i++) {
-      if      ( P[i][X] > xmax ) xmax = P[i][X];
-      else if ( P[i][X] < xmin ) xmin = P[i][X];
-      if      ( P[i][Y] > ymax ) ymax = P[i][Y];
-      else if ( P[i][Y] < ymin ) ymin = P[i][Y];
+      if      ( P[i][0] > xmax ) xmax = P[i][0];
+      else if ( P[i][0] < xmin ) xmin = P[i][0];
+      if      ( P[i][1] > ymax ) ymax = P[i][1];
+      else if ( P[i][1] < ymin ) ymin = P[i][1];
    }
    for (i = 0; i < m; i++) {
-      if      ( Q[i][X] > xmax ) xmax = Q[i][X];
-      else if ( Q[i][X] < xmin ) xmin = Q[i][X];
-      if      ( Q[i][Y] > ymax ) ymax = Q[i][Y];
-      else if ( Q[i][Y] < ymin ) ymin = Q[i][Y];
+      if      ( Q[i][0] > xmax ) xmax = Q[i][0];
+      else if ( Q[i][0] < xmin ) xmin = Q[i][0];
+      if      ( Q[i][1] > ymax ) ymax = Q[i][1];
+      else if ( Q[i][1] < ymin ) ymin = Q[i][1];
    }
 
 
@@ -537,17 +537,17 @@ void   OutputPolygons(tPolygond P, tPolygond Q, int n, int m )
 
    printf("\n%%Polygon P:\n");
    printf("newpath\n");
-   printf("%f\t%f\tmoveto\n", P[0][X], P[0][Y]);
+   printf("%f\t%f\tmoveto\n", P[0][0], P[0][1]);
    for( i = 1; i <= n; i++ )
-      printf("%f\t%f\tlineto\n", P[i][X], P[i][Y]);
+      printf("%f\t%f\tlineto\n", P[i][0], P[i][1]);
    
    printf("closepath stroke\n");
 
    printf("\n%%Polygon Q:\n");
    printf("newpath\n");
-   printf("%f\t%f\tmoveto\n", Q[0][X], Q[0][Y]);
+   printf("%f\t%f\tmoveto\n", Q[0][0], Q[0][1]);
    for( i = 1; i <= m; i++ )
-      printf("%f\t%f\tlineto\n", Q[i][X], Q[i][Y]);
+      printf("%f\t%f\tlineto\n", Q[i][0], Q[i][1]);
    
    printf("closepath stroke\n");
 
@@ -558,8 +558,8 @@ void   OutputPolygons(tPolygond P, tPolygond Q, int n, int m )
 void	PrintSharedSeg( tPointd p, tPointd q )
 {
    printf("%%A int B:\n");
-   printf("%8.2lf %8.2lf moveto\n", p[X], p[Y] );
-   printf("%8.2lf %8.2lf lineto\n", q[X], q[Y] );
+   printf("%8.2lf %8.2lf moveto\n", p[0], p[1] );
+   printf("%8.2lf %8.2lf lineto\n", q[0], q[1] );
    ClosePostscript();
 }
 
