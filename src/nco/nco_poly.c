@@ -444,11 +444,69 @@ poly_sct *pl_out){
   
 }  
 
-
-
-
-
 /************************ functions that manipulate lists of polygons ****************************************************/
+
+void
+nco_poly_re_org_lst(  /* for each poly_sct*  in list re-order points so that first point is the leftermost point */
+poly_sct **pl_lst,
+int arr_nbr)
+{
+  int idx=0;
+  int jdx=0;
+  int max_crn_nbr=0;
+  
+  double *lcl_dp_x;
+  double *lcl_dp_y;
+  
+  /* max crn_nbr */
+  for(idx=0 ; idx<arr_nbr ;idx++)
+    if( pl_lst[idx]->crn_nbr > max_crn_nbr )
+        max_crn_nbr = pl_lst[idx]->crn_nbr;
+ 
+  lcl_dp_x=(double*)nco_calloc(max_crn_nbr, sizeof(double));
+  lcl_dp_y=(double*)nco_calloc(max_crn_nbr, sizeof(double));   
+
+
+  for(idx=0; idx<arr_nbr; idx++)
+  {  
+    int lcl_min=0;
+    int crn_nbr=pl_lst[idx]->crn_nbr;
+    double x_min=1.0e-30;
+
+    /* de-reference */
+    poly_sct *pl=pl_lst[idx];
+    
+    /* find index of min X value */
+    for(jdx=0; jdx<crn_nbr; jdx++)
+      if( pl->dp_x[jdx] < x_min )
+	{ x_min=pl->dp_x[jdx]; lcl_min=jdx;} 
+
+    /* first point already x_min so do nothing */
+    if( lcl_min == 0)
+      continue;
+
+    for(jdx=0; jdx<crn_nbr; jdx++)
+    {  
+      lcl_dp_x[jdx]=pl->dp_x[(jdx+lcl_min)%crn_nbr];
+      lcl_dp_y[jdx]=pl->dp_y[(jdx+lcl_min)%crn_nbr];
+    }  
+
+
+    
+    /* copy over values */
+    memcpy(pl->dp_x, lcl_dp_x, (size_t)crn_nbr*sizeof(double));
+    memcpy(pl->dp_y, lcl_dp_y, (size_t)crn_nbr*sizeof(double));    
+  }
+
+  lcl_dp_x=(double*)nco_free(lcl_dp_x);
+  lcl_dp_y=(double*)nco_free(lcl_dp_y);
+
+  return;
+  
+}  
+
+
+
 
 poly_sct **             /* [O] [nbr]  size of array */   
 nco_poly_lst_mk(

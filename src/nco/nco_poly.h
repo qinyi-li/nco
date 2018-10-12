@@ -89,10 +89,14 @@ extern "C" {
   poly_sct *pl_in,
   poly_sct *pl_out); 		     
   
-
+  	 	  
   
 /************************ functions that manipulate lists of polygons ****************************************************/
 
+  void
+   nco_poly_re_org_lst(  /* for each poly_sct*  in list re-order points so that first point is the leftermost point */
+   poly_sct **pl_lst,
+   int arr_nbr);
   
    poly_sct**             /* [O] [nbr] Array of poly_sct */   
    nco_poly_lst_mk(
