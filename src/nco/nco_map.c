@@ -800,8 +800,8 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
   if(nco_dbg_lvl_get() >= nco_dbg_crr) (void)fprintf(stderr,"%s:%s Just entered function- test msh_wrt()\n",nco_prg_nm_get(),fnc_nm);
 
   
-  nco_msh_wrt("test-wrt-in.nc", grd_sz_in, grd_crn_nbr_in, lat_crn_in, lon_crn_in);
-  nco_msh_wrt("test-wrt-out.nc", grd_sz_out, grd_crn_nbr_out, lat_crn_out, lon_crn_out);
+  nco_msh_wrt("tst-wrt-in.nc", grd_sz_in, grd_crn_nbr_in, lat_crn_in, lon_crn_in);
+  nco_msh_wrt("tst-wrt-out.nc", grd_sz_out, grd_crn_nbr_out, lat_crn_out, lon_crn_out);
 
   //  test nco_poly functions
   {
@@ -813,12 +813,12 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
 
     pl_lst_out =nco_poly_lst_mk(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, &pl_cnt_out);
 
-    /*re-rorder each polygon so start point is leftermost(easterly) */
+    /*re-rorder each polygon so start point is leftermost(westerly) */
     nco_poly_re_org_lst(pl_lst_out, pl_cnt_out);
     
     pl_lst_in =nco_poly_lst_mk(area_in, msk_in, lat_ctr_in,lon_ctr_in, lat_crn_in, lon_crn_in, grd_sz_in, (size_t)grd_crn_nbr_in, &pl_cnt_in);
 
-    /*re-rorder each polygon so start point is leftermost(easterly) */
+    /*re-rorder each polygon so start point is leftermost(westerly) */
     nco_poly_re_org_lst(pl_lst_in, pl_cnt_in);
 
 
@@ -835,6 +835,9 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
 
     if(1||nco_dbg_lvl_get() >= nco_dbg_crr)
       fprintf(stdout, "%s: INFO number of overlap polygons=%d, max number of vertices=%d\n", nco_prg_nm_get(), pl_cnt_vrl, grd_crn_nbr_vrl);
+
+     /*re-rorder each polygon so start point is leftermost(westerly) */
+    nco_poly_re_org_lst(pl_lst_vrl, pl_cnt_vrl);
 
     
     /*we can safely free these  lists */
@@ -888,14 +891,15 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
     /* fill remaining values with last values */
     if(lcl_crn_nbr < grd_crn_nbr_vrl)
       for(jdx=lcl_crn_nbr  ; jdx<grd_crn_nbr_vrl ;jdx++){             
-        *++lon_crn_vrl_ptr=pl_lst_vrl[idx]->dp_x[lcl_crn_nbr-1];
-        *++lat_crn_vrl_ptr=pl_lst_vrl[idx]->dp_y[lcl_crn_nbr-1];
+        //*++lon_crn_vrl_ptr=pl_lst_vrl[idx]->dp_x[lcl_crn_nbr-1];
+        //*++lat_crn_vrl_ptr=pl_lst_vrl[idx]->dp_y[lcl_crn_nbr-1];
+        lon_crn_vrl_ptr[jdx]=pl_lst_vrl[idx]->dp_x[lcl_crn_nbr-1];
+        lat_crn_vrl_ptr[jdx]=pl_lst_vrl[idx]->dp_y[lcl_crn_nbr-1];
       }
-	
   }  
 
   /* write out overlap mesh for debugging purposes */  
-  nco_msh_wrt("test-wrt-vrl.nc", lnk_nbr, grd_crn_nbr_vrl, lat_crn_vrl, lon_crn_vrl);
+  nco_msh_wrt("tst-wrt-vrl.nc", lnk_nbr, grd_crn_nbr_vrl, lat_crn_vrl, lon_crn_vrl);
   
   
   if(lat_crn_vrl) lat_crn_vrl=(double *)nco_free(lat_crn_vrl);
