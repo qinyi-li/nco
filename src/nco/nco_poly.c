@@ -228,6 +228,7 @@ double x_in,
 double y_in)
 {  
   int idx;
+  int idx1;
   int sz;
   nco_bool bret=False;
   nco_bool sign=False;
@@ -257,11 +258,20 @@ double y_in)
     /* for full explanation of algo please 
      
     */
-    area=pl->dp_x[(idx+1)%sz] * pl->dp_y[idx] - pl->dp_x[idx] * pl->dp_y[(idx+1)%sz];
-       
-    /*  need some kind of sigma here */ 
-    if(area ==0.0 )
-      { bret=True; break; }
+    idx1=(idx+1)%sz;
+    area=pl->dp_x[idx1] * pl->dp_y[idx] - pl->dp_x[idx] * pl->dp_y[idx1];
+
+    /* check betweeness need some fabs and limits here */
+    if( fabs(area) <= DAREA ){
+      if( pl->dp_x[idx] != pl->dp_x[idx1] )
+	bret = (  pl->dp_x[idx]<=0.0 &&  pl->dp_x[idx1] >=0.0 ||  pl->dp_x[idx]>=0.0 && pl->dp_x[idx1]<=0.0  ); 
+      else
+        bret = (  pl->dp_y[idx]<=0.0 &&  pl->dp_y[idx1] >=0.0 ||  pl->dp_y[idx]>=0.0 && pl->dp_y[idx1]<=0.0  ); 	  
+
+     break;	  
+    }  
+
+    
 
     dsign=(area>0.0);
 
@@ -553,7 +563,7 @@ int *pl_nbr)
 
       /*  dont use wrapped polygons for now */
       /* skip wrapped polygons for now  */
-      if( fabs(pl->dp_x_minmax[1] - pl->dp_x_minmax[0] ) > 179.0 ){
+      if( fabs(pl->dp_x_minmax[1] - pl->dp_x_minmax[0] ) > 20.0 ){
 	pl=nco_poly_free(pl);
 	continue;
       }
@@ -842,7 +852,7 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
 
     fprintf(stdout,"/************************************************************************************/");
     nco_poly_prn(2, pl_lst_in[idx] );
-    fprintf(stdout,"%s: input polygon=%d number of overlaps=%d -overlapping polygons to follow\n/**************************/\n"  , fnc_nm,  idx, cnt_vrl);
+    fprintf(stdout,"%s: input polygon=%d number of overlaps=%d -overlapping polygons to follow\n"  , fnc_nm,  idx, cnt_vrl);
 
    
     /* for testing purposes just use first overlap polygon */
@@ -853,11 +863,14 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
       poly_sct *pl_out=(poly_sct*)list[jdx].elem->item;           ;
 
 
-      nco_poly_prn(2, pl_out);           
+      // nco_poly_prn(2, pl_out);           
 
       /* check for polygon in polygon first */
       if( nco_poly_poly_in_poly(pl_lst_in[idx], pl_out) == pl_out->crn_nbr )
+      {
+	//fprintf(stdout,"%s: using poly_in_poly()\n", fnc_nm);
 	pl_vrl=nco_poly_dpl(pl_out);
+      }	
       else
         pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
 
@@ -868,7 +881,7 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
 	cnt_vrl_on++;
 
         //fprintf(stdout,"Overlap polygon to follow\n");
-	// nco_poly_prn(2, pl_vrl);
+	//nco_poly_prn(2, pl_vrl);
 	
       } 
 
