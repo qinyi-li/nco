@@ -822,19 +822,13 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
     nco_poly_re_org_lst(pl_lst_in, pl_cnt_in);
 
 
-    if(0 && nco_dbg_lvl_get() >= nco_dbg_crr){
-      fprintf(stdout, "%s: INFO About to print INPUT  POLYGONS  %d\n", nco_prg_nm_get(), pl_cnt_in);
-      for(idx=0;idx<pl_cnt_in; idx++) 
-      (void)nco_poly_prn(0,pl_lst_in[idx]);
-
-    } 
 
     /* call the overlap routine */
     if( pl_cnt_in && pl_cnt_out)
         pl_lst_vrl=nco_poly_mk_vrl_lst(pl_lst_in, pl_cnt_in, pl_lst_out, pl_cnt_out, &pl_cnt_vrl);
 
-    if(1||nco_dbg_lvl_get() >= nco_dbg_crr)
-      fprintf(stdout, "%s: INFO number of overlap polygons=%d, max number of vertices=%d\n", nco_prg_nm_get(), pl_cnt_vrl, grd_crn_nbr_vrl);
+    if(nco_dbg_lvl_get() >= nco_dbg_std)
+      fprintf(stdout, "%s: INFO: num input polygons=%d, num output polygons=%d num overlap polygons=%d\n", nco_prg_nm_get(),pl_cnt_in, pl_cnt_out, pl_cnt_vrl);
 
      /*re-rorder each polygon so start point is leftermost(westerly) */
     nco_poly_re_org_lst(pl_lst_vrl, pl_cnt_vrl);
@@ -855,10 +849,6 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
 
   lnk_nbr=pl_cnt_vrl; 
                   
-  if(1||nco_dbg_lvl_get() >= nco_dbg_crr)
-      fprintf(stdout, "%s: INFO number of overlap polygons=%d, max number of vertices=%d\n", nco_prg_nm_get(), pl_cnt_vrl, grd_crn_nbr_vrl);
-
-
   
   
   lat_crn_vrl=(double *)nco_malloc_dbg(lnk_nbr*grd_crn_nbr_vrl*nco_typ_lng(NC_DOUBLE),fnc_nm,"Unable to malloc() value buffer for overlap latitude corners");
