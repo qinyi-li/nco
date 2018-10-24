@@ -2522,8 +2522,159 @@ int kd_neighbour_intersect(KDElem *node, kd_box Xq, int m, KDPriority *list, kd_
 
 }
 
+int kd_neighbour_intersect2(KDElem *node, int disc, kd_box Xq, int m, KDPriority *list)
+{
+  int idx;
+  int iret;
 
 
+  
+  /* horizonal */
+  if( disc == 0 || disc==2 )
+  {
+    /* out of bounds no overlap */ 
+     iret=!( node->lo_min_bound > Xq[KD_RIGHT] ||  node->hi_max_bound < Xq[KD_LEFT] );
+
+     if(iret==0) return 1;
+
+
+     /* check vertical */
+     //if(  node->size[KD_BOTTOM] >= Xq[KD_BOTTOM] && node->size[KD_BOTTOM] <= Xq[KD_TOP] )
+     if( BOXINTERSECT(node->size, Xq) )
+     { 
+           for(idx=0 ; idx<m ;idx++)
+             if(!list[idx].elem)
+	     {
+	        list[idx].elem=node;
+	        list[idx].dist=1.1;
+	        break;
+             }	  
+
+	     if(idx==m)
+                 return 0;
+     }
+   
+  }
+  else
+    /* vertical */  
+  {    
+
+    /* out of bounds - no overlap */
+    iret=!( node->lo_min_bound >  Xq[KD_TOP] ||  node->hi_max_bound < Xq[KD_BOTTOM] );
+     if(iret==0) return 1;
+
+
+     // if( node->size[KD_LEFT] >= Xq[KD_LEFT] && node->size[KD_LEFT] <= Xq[KD_RIGHT] )
+     if( BOXINTERSECT(node->size, Xq) )
+       { 
+           for(idx=0 ; idx<m ;idx++)
+             if(!list[idx].elem)
+	     {
+	       list[idx].elem=node;
+	       list[idx].dist=1.1;
+	       break;
+             }
+	   
+	   if(idx==m)
+	     return 0;
+
+     }
+
+
+
+  }
+
+
+  if( node->sons[0] )
+  {
+    iret= kd_neighbour_intersect2(node->sons[0], (disc+1)%4, Xq,  m,  list);
+    if(iret==0) return iret;
+      
+  }
+     
+  if( node->sons[1] )
+  {  
+    kd_neighbour_intersect2(node->sons[1], (disc+1)%4,  Xq,  m,  list);
+    if(iret==0) return iret;
+       
+  }
+
+
+  return 1;
+  
+}
+
+int kd_neighbour_intersect3(KDElem *node, int disc, kd_box Xq, int m, KDPriority *list, int stateH, int stateV )
+{
+  int idx;
+  int iret;
+
+  /* horizonal */
+  if( stateH <2  &&   (disc == 0 || disc==2 ) )
+  {
+
+    if( node->lo_min_bound > Xq[KD_RIGHT] ||  node->hi_max_bound < Xq[KD_LEFT] )
+	 return 1;
+
+    if( node->lo_min_bound >= Xq[KD_LEFT] &&  node->hi_max_bound <= Xq[KD_RIGHT] )
+	 stateH=2;
+
+    
+   
+  }
+    /* vertical */  
+  else if(stateV <2 && (disc == 1 || disc ==3) )
+  {    
+
+    /* out of bounds - no overlap */
+    if( node->lo_min_bound >  Xq[KD_TOP] ||  node->hi_max_bound < Xq[KD_BOTTOM] )
+	 return 1;
+
+    if( node->lo_min_bound >=  Xq[KD_BOTTOM] &&   node->hi_max_bound <= Xq[KD_TOP] )
+	 stateV=2;
+
+    
+
+
+  }
+
+
+  /* add node as necessary */
+  if( (stateH == 2  && stateV == 2 ) || BOXINTERSECT(node->size, Xq)) 
+  { 
+
+    for(idx=0 ; idx<m ;idx++)
+      if(!list[idx].elem)
+      {
+        list[idx].elem=node;
+        list[idx].dist=1.1;
+        break;
+      }
+    
+     if(idx==m)
+       return 0;
+  }
+     
+  
+
+  if( node->sons[0] )
+  {
+    iret= kd_neighbour_intersect3(node->sons[0], (disc+1)%4, Xq,  m,  list, stateH, stateV);
+    if(iret==0) return iret;
+      
+  }
+     
+  if( node->sons[1] )
+  {  
+    kd_neighbour_intersect3(node->sons[1], (disc+1)%4,  Xq,  m,  list, stateH, stateV);
+    if(iret==0) return iret;
+       
+  }
+
+
+  return 1;
+  
+}
 
 
 
@@ -2581,19 +2732,23 @@ int kd_nearest_intersect(KDTree* realTree, kd_box Xq, int m, KDPriority *list)
 	Bn[1]=realTree->extent[3];
 
 	
-	
-	node_cnt= kd_neighbour_intersect(realTree->tree,Xq,m,list,Bp,Bn);
+	/* old routine visits evry node */
+	// node_cnt= kd_neighbour_intersect(realTree->tree,Xq,m,list,Bp,Bn);
+
+	/* new routine -checks low_min_bound and hi_min_bound  */
+	//node_cnt= kd_neighbour_intersect2(realTree->tree,0,Xq,m,list);
+
+	node_cnt= kd_neighbour_intersect3(realTree->tree,0,Xq,m,list,0,0);
 
         for(idx=0; idx<m;idx++)
           if(list[idx].elem ) ret_cnt++;
 
 	
-        if(nco_dbg_lvl_get() >= nco_dbg_crr  ) {
+        if(0  && nco_dbg_lvl_get() >= nco_dbg_dev  ) {
 	  
-	  fprintf(stderr,"Nearest Search: visited %d nodes to find the %d closest objects.\n", node_cnt, m);
 	  for(idx=0;idx<ret_cnt;idx++)
 	  {
-	       (void)fprintf(stderr,"Nearest Neighbor: dist to center: %f units. elem=%ld. item=%p. x(%.14f,%.14f) y(%.14f,%.14f)\n",
+	       (void)fprintf(stderr," dist to center: %f units. elem=%ld. item=%p. x(%.14f,%.14f) y(%.14f,%.14f)\n",
 				list[idx].dist,
 			        list[idx].elem,
 			        list[idx].elem->item,
