@@ -49,6 +49,7 @@ int main(int argc, char **argv)
 ---------------------------------------------------------------------*/
 int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r )
 {
+   int lcl_dbg=0; 
    nco_bool FirstPoint=True;    /*s this the first point? (used to initialize).*/   
    int     a=0, b=0;            /* indices on P and Q (resp.) */
    int     a1, b1;              /* a-1, b-1 (resp.) */
@@ -82,7 +83,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
       /* If A & B intersect, update inflag. */
       code = SegSegInt( P[a1], P[a], Q[b1], Q[b], p, q );
 
-      if(nco_dbg_lvl_get() >= nco_dbg_dev)
+      if(lcl_dbg)
         (void)fprintf(stdout, "%s: cross=%d, aHB=%d, bHA=%d code = %c\n", nco_prg_nm_get(),cross, aHB, bHA, code );
 
       if ( code == '1' || code == 'v' ) {
@@ -98,7 +99,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
 	 
 	 AddPoint(R,r, p);
 
-         if(nco_dbg_lvl_get() >= nco_dbg_dev)
+         if(lcl_dbg)
 	      (void)fprintf(stdout, "%s: InOut sets inflag=%d\n", nco_prg_nm_get(),  inflag);
       }
 
@@ -116,7 +117,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
       if ( (cross == 0) && ( aHB < 0) && ( bHA < 0 ) )
 	{
 
-          if(nco_dbg_lvl_get() >= nco_dbg_dev)
+          if(lcl_dbg)
               (void)fprintf(stdout, "%s: P and Q are disjoint\n", nco_prg_nm_get());
 	  
 	  return EXIT_FAILURE;
@@ -177,7 +178,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
       a%=n;
       b%=m;
 
-     if(nco_dbg_lvl_get() >= nco_dbg_dev)
+     if(lcl_dbg)
        (void)fprintf(stdout, "%s: Before Advances:a=%d, b=%d; aa=%d, ba=%d; inflag=%d\n", nco_prg_nm_get(),   a, b, aa, ba, inflag);
 
 
@@ -186,7 +187,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
 
    if ( !FirstPoint ) 
    {
-      if(nco_dbg_lvl_get() >= nco_dbg_dev)
+      if(lcl_dbg)
          (void)fprintf(stdout, "%s: no points output\n", nco_prg_nm_get());
       
       return EXIT_FAILURE;
@@ -197,7 +198,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
    if ( inflag == Unknown)
    {
 
-      if(nco_dbg_lvl_get() >= nco_dbg_dev)
+      if(lcl_dbg)
          (void)fprintf(stdout, "The boundaries of P and Q do not cross.\n", nco_prg_nm_get());
       
       return EXIT_FAILURE;
