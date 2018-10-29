@@ -21,8 +21,14 @@ extern "C" {
 #endif /* __cplusplus */
 
 #define CORNER_MAX 100
+
+
+/* filter out cells  larger than below  */   
+#define CELL_LATITUDE_MAX  30.0
+#define CELL_LONGITUDE_MAX 30.0   
   
 
+  
   typedef struct{
   
     double *dp_x;    /* x  vertices */
@@ -62,9 +68,13 @@ extern "C" {
   nco_poly_dpl
   (poly_sct *pl);
 
-  void nco_poly_add_minmax
+  void
+  nco_poly_add_minmax
   (poly_sct *pl);
-	
+
+  void
+  nco_poly_use_minmax_crn /* use the values of minmax box as dp_x, dp_y  */
+  (poly_sct *pl);
   
   void
   nco_poly_prn
@@ -80,16 +90,26 @@ extern "C" {
 
   nco_bool            /* O [flg] True if point in inside (or on boundary ) of polygon */ 
   nco_poly_pnt_in_poly( 
-  poly_sct *pl, 		     
+  int crn_nbr,
   double x_in,
-  double y_in);
+  double y_in,
+  double *lcl_dp_x,
+  double *lcl_dp_y);	
 
   int             /* O [nbr] returns number of points of pl_out that are inside pl_in */
   nco_poly_poly_in_poly( 
   poly_sct *pl_in,
   poly_sct *pl_out); 		     
+
   
-  	 	  
+  nco_bool
+  nco_poly_wrp_splt( 
+  poly_sct  *pl,
+  nco_grd_lon_typ_enm grd_lon_typ,
+  poly_sct **pl_wrp_left,
+  poly_sct ** pl_wrp_right);
+
+  
   
 /************************ functions that manipulate lists of polygons ****************************************************/
 
@@ -99,7 +119,7 @@ extern "C" {
    int arr_nbr);
   
    poly_sct**             /* [O] [nbr] Array of poly_sct */   
-   nco_poly_lst_mk(
+   nco_poly_mk_lst(
    double *area, /* I [sr] Area of source grid */
    int *msk, /* I [flg] Mask on source grid */
    double *lat_ctr, /* I [dgr] Latitude  centers of source grid */
@@ -108,6 +128,7 @@ extern "C" {
    double *lon_crn, /* I [dgr] Longitude corners of source grid */
    size_t grd_sz, /* I [nbr] Number of elements in single layer of source grid */
    long grd_crn_nbr, /* I [nbr] Maximum number of corners in source gridcell */
+   nco_grd_lon_typ_enm grd_lon_typ, /* I [num] if not nil then split cells that straddle Greenwich or Dateline  */
    int *pl_nbr);    /* O [nbr] size  poly_sct */  
 		   
    poly_sct **
