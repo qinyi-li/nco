@@ -779,6 +779,9 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
   int *col_src_adr; /* [idx] Source address (col) */
   int *row_dst_adr; /* [idx] Destination address (row) */
 
+  nco_grd_lon_typ_enm grd_lon_typ_in=nco_grd_lon_nil;
+  nco_grd_lon_typ_enm grd_lon_typ_out=nco_grd_lon_nil;  
+  
   int rcd=NCO_NOERR;
 
   long grd_crn_nbr_vrl; /* [nbr] Maximum number of corners in overlap polygon */
@@ -811,16 +814,13 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
     poly_sct **pl_lst_in;
     poly_sct **pl_lst_out;
 
-    pl_lst_out =nco_poly_lst_mk(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, &pl_cnt_out);
+    /* assume for now both input grids 360 */
+    grd_lon_typ_in=nco_grd_lon_Grn_ctr;
+    grd_lon_typ_out=nco_grd_lon_Grn_ctr;
 
-    /*re-rorder each polygon so start point is leftermost(westerly) */
-    nco_poly_re_org_lst(pl_lst_out, pl_cnt_out);
-    
-    pl_lst_in =nco_poly_lst_mk(area_in, msk_in, lat_ctr_in,lon_ctr_in, lat_crn_in, lon_crn_in, grd_sz_in, (size_t)grd_crn_nbr_in, &pl_cnt_in);
+    pl_lst_out =nco_poly_mk_lst(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, grd_lon_typ_out,  &pl_cnt_out);
 
-    /*re-rorder each polygon so start point is leftermost(westerly) */
-    nco_poly_re_org_lst(pl_lst_in, pl_cnt_in);
-
+    pl_lst_in =nco_poly_mk_lst(area_in, msk_in, lat_ctr_in,lon_ctr_in, lat_crn_in, lon_crn_in, grd_sz_in, (size_t)grd_crn_nbr_in, grd_lon_typ_in, &pl_cnt_in);
 
 
     /* call the overlap routine */
@@ -830,9 +830,16 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
     if(nco_dbg_lvl_get() >= nco_dbg_std)
       fprintf(stdout, "%s: INFO: num input polygons=%d, num output polygons=%d num overlap polygons=%d\n", nco_prg_nm_get(),pl_cnt_in, pl_cnt_out, pl_cnt_vrl);
 
-     /*re-rorder each polygon so start point is leftermost(westerly) */
-    nco_poly_re_org_lst(pl_lst_vrl, pl_cnt_vrl);
-
+    
+    /* debug output non-convex polygons */
+    /*
+    for(idx=0; idx< pl_cnt_vrl; idx++)
+      if( nco_poly_is_convex(pl_lst_vrl[idx]) == False )
+      { 	  
+        fprintf(stdout,"%s:%s outpu polygon not convex\n  ", nco_prg_nm_get(), fnc_nm ); 
+        nco_poly_prn(2, pl_lst_vrl[idx]);    
+      }
+    */
     
     /*we can safely free these  lists */
     pl_lst_in=nco_poly_lst_free(pl_lst_in,pl_cnt_in);    
@@ -934,7 +941,14 @@ nco_msh_wrt
   int dmn_id_grd_sz; /* [id] Grid size dimension ID */
   int grd_crn_lat_id; /* [id] Grid corner latitudes  variable ID */
   int grd_crn_lon_id; /* [id] Grid corner longitudes variable ID */
+  int grd_area_id; /* [id] Grid corner longitudes variable ID */
 
+  
+  double *area=NULL_CEWI;
+  double *grd_ctr_lat=NULL_CEWI;
+  double *grd_ctr_lon=NULL_CEWI;
+  
+  
   long dmn_srt[2];
   long dmn_cnt[2];
 
@@ -961,7 +975,12 @@ nco_msh_wrt
   nco_bool RAM_OPEN=False; /* [flg] Open (netCDF3-only) file(s) in RAM */
   nco_bool WRT_TMP_FL=False; /* [flg] Write output to temporary file */
 
-  
+
+  area=(double*)nco_malloc( sizeof(double) * grd_sz_nbr);
+  grd_ctr_lat=(double*)nco_malloc( sizeof(double) * grd_sz_nbr);
+  grd_ctr_lon=(double*)nco_malloc( sizeof(double) * grd_sz_nbr);
+
+  nco_sph_plg_area(lat_crn, lon_crn, grd_sz_nbr, grd_crn_nbr, area);  
 
   /* Open grid file */
   fl_out_tmp=nco_fl_out_open(fl_out,&FORCE_APPEND,FORCE_OVERWRITE,fl_out_fmt,&bfr_sz_hnt,RAM_CREATE,RAM_OPEN,WRT_TMP_FL,&out_id);
@@ -978,7 +997,7 @@ nco_msh_wrt
   shuffle=NC_SHUFFLE;
 
   /* Define variables */
-
+   
 
   (void)nco_def_var(out_id,grd_crn_lat_nm,crd_typ,dmn_nbr_2D,dmn_ids,&grd_crn_lat_id);
   if(dfl_lvl > 0) (void)nco_def_var_deflate(out_id,grd_crn_lat_id,shuffle,deflate,dfl_lvl);
@@ -986,6 +1005,11 @@ nco_msh_wrt
   (void)nco_def_var(out_id,grd_crn_lon_nm,crd_typ,dmn_nbr_2D,dmn_ids,&grd_crn_lon_id);
   if(dfl_lvl > 0) (void)nco_def_var_deflate(out_id,grd_crn_lon_id,shuffle,deflate,dfl_lvl);
 
+  (void)nco_def_var(out_id,grd_area_nm, crd_typ,dmn_nbr_1D, dmn_ids, &grd_area_id);
+  if(dfl_lvl > 0) (void)nco_def_var_deflate(out_id,grd_area_id, shuffle, deflate, dfl_lvl);
+
+
+  
   /* Begin data mode */
   (void)nco_enddef(out_id);
 
@@ -996,10 +1020,18 @@ nco_msh_wrt
 
   rcd=nco_put_vara(out_id,grd_crn_lat_id,dmn_srt,dmn_cnt,lat_crn,crd_typ);
   rcd=nco_put_vara(out_id,grd_crn_lon_id,dmn_srt,dmn_cnt,lon_crn,crd_typ);
+  rcd=nco_put_vara(out_id,grd_area_id,dmn_srt,dmn_cnt, area, crd_typ);
 
   /* Close output file and move it from temporary to permanent location */
   (void)nco_fl_out_cls(fl_out,fl_out_tmp,out_id);
 
+
+  area=(double*)nco_free(area);
+  grd_ctr_lat=(double*)nco_free(grd_ctr_lat);
+  grd_ctr_lon=(double*)nco_free(grd_ctr_lon);
+
+
+  
 
 }  
 
