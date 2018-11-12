@@ -57,6 +57,7 @@ extern "C" {
   poly_sct *
   nco_poly_init_lst
   (int arr_nbr,
+   int mem_flg,
    double *dp_x_in,
    double *dp_y_in);
 
@@ -109,11 +110,20 @@ extern "C" {
   poly_sct **pl_wrp_left,
   poly_sct ** pl_wrp_right);
 
-  
-  
+  void
+  nco_poly_re_org(
+  poly_sct *pl, 		  
+  double *lcl_dp_x,
+  double *lcl_dp_y);
+
+  nco_bool  /* 0 [flg] True if polygon is convex */
+  nco_poly_is_convex(
+  poly_sct *pl);		     
+
+
 /************************ functions that manipulate lists of polygons ****************************************************/
 
-  void
+   void
    nco_poly_re_org_lst(  /* for each poly_sct*  in list re-order points so that first point is the leftermost point */
    poly_sct **pl_lst,
    int arr_nbr);
