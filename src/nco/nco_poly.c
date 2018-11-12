@@ -123,6 +123,7 @@ nco_poly_init_crn
 poly_sct *
 nco_poly_init_lst
 (int arr_nbr,
+ int mem_flg,
  double *dp_x_in,
  double *dp_y_in)
 {
@@ -146,16 +147,27 @@ nco_poly_init_lst
      return (poly_sct*)NULL_CEWI;   
 
  /* we have at least a triangle */ 
- pl=nco_poly_init();
+
  
  /* dont free  pointers */
- pl->mem_flg=1;
- pl->crn_nbr=idx;
+ if( mem_flg)
+ {
+
+   pl=nco_poly_init();
+   pl->mem_flg=1;
+   pl->crn_nbr=idx;
  
- pl->dp_x=dp_x_in;
- pl->dp_y=dp_y_in;
+   pl->dp_x=dp_x_in;
+   pl->dp_y=dp_y_in;
  
- 
+ }
+ else
+ {
+   pl=nco_poly_init_crn(idx); 
+   memcpy(pl->dp_x, dp_x_in, sizeof(double) *idx);
+   memcpy(pl->dp_y, dp_y_in, sizeof(double) *idx);   
+   
+ }    
  
  return pl;
  
@@ -419,11 +431,13 @@ nco_poly_do_vrl(
 poly_sct *pl_in,
 poly_sct *pl_out){
 
+  
  int iret=0; 
  int nbr_p=0;
  int nbr_q=0;
  int nbr_r=0;
- 
+
+ char fnc_nm[]="nco_poly_do_vrl()";
   
  poly_sct *pl_vrl;
   
@@ -450,7 +464,22 @@ poly_sct *pl_out){
  
  pl_vrl=nco_poly_old_2_new(R, nbr_r); 
 
- 
+
+ /*
+ if(pl_vrl &&  nco_poly_is_convex(pl_vrl) == False )
+ {    
+    
+  fprintf(stdout,"%s:%s vrl polygon not convex  vrl, in, out\n", nco_prg_nm_get(), fnc_nm ); 
+  nco_poly_prn(2, pl_vrl);
+  nco_poly_prn(2, pl_in);
+  nco_poly_prn(2, pl_out);   
+
+
+
+ }  
+ */ 
+
+
  return pl_vrl;
   
 }
@@ -490,10 +519,10 @@ poly_sct ** pl_wrp_right)
 
   poly_sct *pl_in;
   poly_sct *pl_bnds;
-  double dbl_left_thr_360=320.0;
+  // double dbl_left_thr_360=320.0;
 
   /* check max bounds is MORE than Threshold */
-  if( !(pl->dp_x_minmax[1] >   dbl_left_thr_360  &&  (360.0-pl->dp_x_minmax[1] > DSIGMA )) )
+  if( !(pl->dp_x_minmax[1] >  ( 360.0 - CELL_LONGITUDE_MAX)    &&  (360.0-pl->dp_x_minmax[1] > DSIGMA )) )
      return NCO_ERR;
 
   
@@ -503,7 +532,7 @@ poly_sct ** pl_wrp_right)
   /* make longitudes on LHS of GMT negative */
   for(idx=0; idx<pl_in->crn_nbr; idx++)
   {
-    if(pl_in->dp_x[idx] > dbl_left_thr_360){
+    if(pl_in->dp_x[idx] > (360.0 - CELL_LONGITUDE_MAX)){
 
       pl_in->dp_x[idx]-=360.0;
       cnt_left++;
@@ -540,7 +569,13 @@ poly_sct ** pl_wrp_right)
       (*pl_wrp_left)->dp_x[idx]+=360.0;
 
     
-    nco_poly_add_minmax(*pl_wrp_left);     
+    nco_poly_add_minmax(*pl_wrp_left);
+
+    /* check overall-extent */
+    if(  (*pl_wrp_left)->dp_x_minmax[1] - (*pl_wrp_left)->dp_x_minmax[0] > CELL_LONGITUDE_MAX )
+      *pl_wrp_left=nco_poly_free(*pl_wrp_left);
+    
+    
   }
 
   /* now create bound for right polygon */
@@ -555,7 +590,16 @@ poly_sct ** pl_wrp_right)
   *pl_wrp_right=nco_poly_do_vrl(pl_in, pl_bnds);
 
   if(*pl_wrp_right)
-     nco_poly_add_minmax(*pl_wrp_right);     
+  {
+    
+     nco_poly_add_minmax(*pl_wrp_right);
+     
+    /* check overall-extent */
+    if(  (*pl_wrp_right)->dp_x_minmax[1] - (*pl_wrp_right)->dp_x_minmax[0] > CELL_LONGITUDE_MAX )
+      *pl_wrp_right=nco_poly_free(*pl_wrp_right);
+
+  }
+     
   
 
   pl_in=nco_poly_free(pl_in);
@@ -582,9 +626,103 @@ poly_sct ** pl_wrp_right)
 }
   
 
+void
+nco_poly_re_org(
+poly_sct *pl, 		  
+double *lcl_dp_x,
+double *lcl_dp_y)
+{
+
+  int idx;
+  int idx1;
+  
+  int lcl_min=0;
+  int crn_nbr=pl->crn_nbr;
+  double x_min=DBL_MAX;
+
+    
+  /* find index of min X value */
+  for(idx=0; idx<crn_nbr; idx++)
+  {  
+    if( pl->dp_x[idx] < x_min )
+      { x_min=pl->dp_x[idx]; lcl_min=idx;} 
+  }
+
+  /* first point already x_min so do nothing */
+  if( lcl_min == 0)
+    return;
+
+  for(idx=0; idx<crn_nbr; idx++)
+  {
+     idx1=(idx+lcl_min)%crn_nbr;
+     lcl_dp_x[idx]=pl->dp_x[idx1];
+     lcl_dp_y[idx]=pl->dp_y[idx1];
+  }  
+
+  
+
+    
+  /* copy over values */
+  memcpy(pl->dp_x, lcl_dp_x, sizeof(double) * crn_nbr);
+  memcpy(pl->dp_y, lcl_dp_y, sizeof(double) * crn_nbr);    
+
+
+  return;
+  
+
+
+}  
+
+
+nco_bool  /* 0 [flg] True if polygon is convex */
+nco_poly_is_convex(
+poly_sct *pl)
+{  
+
+    nco_bool sign=False;
+    nco_bool sign_init=False;
+    
+    int idx;
+    int idx1;
+    int idx2;
+    int sz;
+    double area;
+
+    sz=pl->crn_nbr;
+
+    for(idx=0;idx<sz; idx++)
+    {
+      idx1=(idx+1)%sz;
+      idx2=(idx+2)%sz;
+      area= ( pl->dp_x[idx1] -pl->dp_x[idx] )  *  (pl->dp_y[idx2] -pl->dp_y[idx1] )  -  (pl->dp_x[idx2] - pl->dp_x[idx1]) * (pl->dp_y[idx1] -pl->dp_y[idx]) ; 
+
+      /* skip contiguous identical vertex */ 
+      if(area==0.0)
+	continue;
+      
+            
+      if(!sign_init)
+      {	
+	sign=(area>0.0);
+        sign_init=True;
+      }
+      
+      if(sign != (area>0.0))
+	return False;
+      
+      
+    }
+    return True;   
+
+
+
+
+
+}  
+
+
 
 /************************ functions that manipulate lists of polygons ****************************************************/
-
 void
 nco_poly_re_org_lst(  /* for each poly_sct*  in list re-order points so that first point is the leftermost point */
 poly_sct **pl_lst,
@@ -647,6 +785,46 @@ int arr_nbr)
 
 
 
+void
+nco_poly_re_org_lst_old(  /* for each poly_sct*  in list re-order points so that first point is the leftermost point */
+poly_sct **pl_lst,
+int arr_nbr)
+{
+  int idx=0;
+  int jdx=0;
+  int max_crn_nbr=0;
+  
+  double *lcl_dp_x;
+  double *lcl_dp_y;
+
+  
+  if( arr_nbr==0)
+    return;
+  
+  /* max crn_nbr */
+  for(idx=0 ; idx<arr_nbr ;idx++)
+    if( pl_lst[idx]->crn_nbr > max_crn_nbr )
+        max_crn_nbr = pl_lst[idx]->crn_nbr;
+ 
+  lcl_dp_x=(double*)nco_calloc(max_crn_nbr, sizeof(double));
+  lcl_dp_y=(double*)nco_calloc(max_crn_nbr, sizeof(double));   
+
+
+  for(idx=0; idx<arr_nbr;idx++)
+    nco_poly_re_org(pl_lst[idx], lcl_dp_x, lcl_dp_y); 
+
+  
+
+  lcl_dp_x=(double*)nco_free(lcl_dp_x);
+  lcl_dp_y=(double*)nco_free(lcl_dp_y);
+
+  return;
+  
+}  
+
+
+
+
 poly_sct **             /* [O] [nbr]  size of array */   
 nco_poly_mk_lst(
 double *area, /* I [sr] Area of source grid */
@@ -669,6 +847,11 @@ int *pl_nbr)
     
     double *lat_ptr=lat_crn;
     double *lon_ptr=lon_crn;
+
+    /* buffers  used in nco-poly_re_org() */
+    double lcl_dp_x[VP_MAX]={0};
+    double lcl_dp_y[VP_MAX]={0};
+    
     poly_sct *pl;
     poly_sct *pl_wrp_left;
     poly_sct *pl_wrp_right;
@@ -686,7 +869,7 @@ int *pl_nbr)
 	continue;
 
       
-      pl=nco_poly_init_lst( grd_crn_nbr, lon_ptr, lat_ptr);
+      pl=nco_poly_init_lst( grd_crn_nbr,0, lon_ptr, lat_ptr);
       lon_ptr+=(size_t)grd_crn_nbr;
       lat_ptr+=(size_t)grd_crn_nbr;
 
@@ -694,34 +877,74 @@ int *pl_nbr)
       if(!pl)
 	continue;
 
+      
       /* add min max */
       nco_poly_add_minmax(pl);
 
+      nco_poly_re_org(pl, lcl_dp_x, lcl_dp_y);          
+
+
+
+
+      fprintf(stdout,"/***** input polygon pl  ********************/\n");
+      nco_poly_prn(2,pl);  
+	
+      /* assume max logitudinal width of regular cell  180.0 */ 
+      /* assume max width of wrapped cell is >330.0 */
+      if( pl->dp_x_minmax[1] - pl->dp_x_minmax[0]  >  CELL_LONGITUDE_MAX  && pl->dp_x_minmax[1] - pl->dp_x_minmax[0]  <   180.0  )
+      {
+        fprintf(stdout,"cell longitude for above polygon too large - skipping\n");                       
+        pl=nco_poly_free(pl);
+	continue; 
+
+      }	
+
+
+      
+      
       //if( grd_lon_typ == nco_grd_lon_nil ||   fabs(pl->dp_x_minmax[1] - pl->dp_x_minmax[0] ) < 340.0 )
-      if( grd_lon_typ == nco_grd_lon_nil ||  pl->dp_x_minmax[1] - pl->dp_x_minmax[0]  <= CELL_LONGITUDE_MAX       )
+      if( grd_lon_typ == nco_grd_lon_nil ||  pl->dp_x_minmax[1] - pl->dp_x_minmax[0]  < CELL_LONGITUDE_MAX  )
       {
         pl_lst[idx_cnt]=pl;
         idx_cnt++;
 	continue;
       }	
-
-      else if( nco_poly_wrp_splt(pl, grd_lon_typ, &pl_wrp_left, &pl_wrp_right ) == NCO_NOERR )
+      /* check for wrapping */     
+      else if(  (pl->dp_x_minmax[1]  >= 360.0-CELL_LONGITUDE_MAX)  &&  nco_poly_wrp_splt(pl, grd_lon_typ, &pl_wrp_left, &pl_wrp_right ) == NCO_NOERR )
       {
+
+	fprintf(stdout,"/***** pl, wrp_left, wrp_right ********************/\n");
+	
+	
+	if(pl_wrp_left)
+	{
+	   nco_poly_re_org(pl_wrp_left, lcl_dp_x, lcl_dp_y);
+	   pl_lst[idx_cnt++]=pl_wrp_left;
+	   nco_poly_prn(2, pl_wrp_left);
+                                               
+	}   
+	   
+	if(pl_wrp_right)
+	{
+	   nco_poly_re_org(pl_wrp_right, lcl_dp_x, lcl_dp_y);
+	   pl_lst[idx_cnt++]=pl_wrp_right;
+	   nco_poly_prn(2, pl_wrp_right);
+                                               
+	}   
+
+	
+	
 	 pl=nco_poly_free(pl);
 	 
-	 if(pl_wrp_left)
-	   pl_lst[idx_cnt++]=pl_wrp_left;
 
-	 if(pl_wrp_right)
-	   pl_lst[idx_cnt++]=pl_wrp_right;
+	fprintf(stdout,"/**********************************/\n");    
 	 
 	 cnt_wrp_good++;
       }
      else
      {    
          /* if wrapping didnt work print out source polygon */  
-         (void)fprintf(stdout, "%s: wrapping didnt work on this polygon\n", nco_prg_nm_get());     
-         nco_poly_prn(2, pl);
+       (void)fprintf(stdout, "%s: wrapping didnt work on this polygon(%d)\n", nco_prg_nm_get(), idx );     
          (void)fprintf(stdout, "/********************************/\n");     
 
 	 pl=nco_poly_free(pl);
@@ -844,6 +1067,11 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
  char *chr_ptr;
  char fnc_nm[]="nco_poly_mk_vrl()";  
 
+ /* buffers  used in nco-poly_re_org() */
+ double lcl_dp_x[VP_MAX]={0};
+ double lcl_dp_y[VP_MAX]={0};
+
+ 
  kd_box size;
 
  poly_sct ** pl_lst_vrl=NULL_CEWI;
@@ -925,11 +1153,21 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
         pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
 
       if(pl_vrl){
+	nco_poly_re_org(pl_vrl, lcl_dp_x, lcl_dp_y);
 	pl_lst_vrl=(poly_sct**)nco_realloc(pl_lst_vrl, sizeof(poly_sct*) * (pl_cnt_vrl+1));
 	pl_lst_vrl[pl_cnt_vrl]=pl_vrl;
 	pl_cnt_vrl++;
 	cnt_vrl_on++;
 
+       if(nco_poly_is_convex(pl_vrl) == False )
+       {    
+           fprintf(stdout,"%s:%s vrl polygon not convex  vrl, in, out\n", nco_prg_nm_get(), fnc_nm ); 
+           nco_poly_prn(2, pl_vrl);
+           nco_poly_prn(2, pl_lst_in[idx]);
+           nco_poly_prn(2, pl_out);   
+
+       }  
+	
         //fprintf(stdout,"Overlap polygon to follow\n");
 	//nco_poly_prn(2, pl_vrl);
 	
