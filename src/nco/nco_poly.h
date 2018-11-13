@@ -25,7 +25,7 @@ extern "C" {
 
 /* filter out cells  larger than below  */   
 #define CELL_LATITUDE_MAX  30.0
-#define CELL_LONGITUDE_MAX 30.0   
+#define CELL_LONGITUDE_MAX 180.0
   
 
   
