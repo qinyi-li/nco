@@ -505,6 +505,215 @@ nco_poly_use_minmax_crn /* use the values of minmax box as dp_x, dp_y  */
 }  
 
 
+nco_bool
+nco_poly_wrp_splt180(
+poly_sct  *pl,
+poly_sct **pl_wrp_left,
+poly_sct ** pl_wrp_right)
+{
+
+  int idx;
+  int cnt_right=0;
+
+  poly_sct *pl_in;
+  poly_sct *pl_bnds;
+  // double dbl_le vft_thr_360=320.0;
+
+  /* for wrapping width must be longer than max */
+  if( pl->dp_x_minmax[1] - pl->dp_x_minmax[0] <  CELL_LONGITUDE_MAX )
+     return NCO_ERR;
+
+   
+  
+  /* deal with 0-360 grid for starters */
+  pl_in=nco_poly_dpl(pl);
+
+  /* make longitudes  RHS of dateline  positive */
+  for(idx=0; idx<pl_in->crn_nbr; idx++)
+  {
+    if(pl_in->dp_x[idx] <  0.0){
+
+      pl_in->dp_x[idx]+=360.0;
+      cnt_right++;
+    }
+  }
+
+  nco_poly_add_minmax(pl_in);     
+  
+  if( cnt_right == pl_in->crn_nbr || cnt_right==0 ) 
+  {
+    pl_in=nco_poly_free(pl_in);   
+    return NCO_ERR;
+  }
+ 
+  
+  /*  create right intersection polygon */
+  pl_bnds=nco_poly_init_crn(4);              
+
+  pl_bnds->dp_x_minmax[0]=180.0;
+  pl_bnds->dp_x_minmax[1]=pl_in->dp_x_minmax[1];
+  pl_bnds->dp_y_minmax[0]=pl_in->dp_y_minmax[0];
+  pl_bnds->dp_y_minmax[1]=pl_in->dp_y_minmax[1];
+
+  nco_poly_use_minmax_crn(pl_bnds);
+
+  /* do overlap */
+  *pl_wrp_left=nco_poly_do_vrl(pl_in, pl_bnds);
+
+  /* must subtract  back the 360.0 we subtracted earlier */ 
+  if(*pl_wrp_left){
+    
+    for(idx=0;idx< (*pl_wrp_left)->crn_nbr;idx++)
+      (*pl_wrp_left)->dp_x[idx]-=360.0;
+
+    
+    nco_poly_add_minmax(*pl_wrp_left);
+
+    
+    
+  }
+
+  /* now create bound for right polygon */
+  pl_bnds->dp_x_minmax[0]=pl_in->dp_x_minmax[0];
+  pl_bnds->dp_x_minmax[1]=180.0;
+  pl_bnds->dp_y_minmax[0]=pl_in->dp_y_minmax[0];
+  pl_bnds->dp_y_minmax[1]=pl_in->dp_y_minmax[1];
+
+  nco_poly_use_minmax_crn(pl_bnds);
+  
+  /* do overlap */
+  *pl_wrp_right=nco_poly_do_vrl(pl_in, pl_bnds);
+
+  if(*pl_wrp_right)
+  {
+    
+     nco_poly_add_minmax(*pl_wrp_right);
+     
+
+  }
+     
+  
+
+  pl_in=nco_poly_free(pl_in);
+  pl_bnds=nco_poly_free(pl_bnds);
+
+
+
+  if( *pl_wrp_left ||  *pl_wrp_right )
+    return NCO_NOERR;
+  else
+    return NCO_ERR;
+  
+}
+
+
+
+
+
+nco_bool
+nco_poly_wrp_splt360(
+poly_sct  *pl,
+poly_sct **pl_wrp_left,
+poly_sct ** pl_wrp_right)
+{
+
+  int idx;
+  int cnt_left=0;
+
+  poly_sct *pl_in;
+  poly_sct *pl_bnds;
+
+  
+  
+  /* deal with 0-360 grid for starters */
+  pl_in=nco_poly_dpl(pl);
+
+  /* make longitudes on LHS of GMT negative */
+  for(idx=0; idx<pl_in->crn_nbr; idx++)
+  {
+    if(pl_in->dp_x[idx] > 180.0){
+
+      pl_in->dp_x[idx]-=360.0;
+      cnt_left++;
+    }
+  }
+
+  nco_poly_add_minmax(pl_in);     
+  
+  if( cnt_left == pl_in->crn_nbr || cnt_left==0 ) 
+  {
+    pl_in=nco_poly_free(pl_in);   
+    return NCO_ERR;
+  }
+ 
+  
+  /*  create left intersection polygon */
+  pl_bnds=nco_poly_init_crn(4);              
+
+  pl_bnds->dp_x_minmax[0]=pl_in->dp_x_minmax[0];
+  pl_bnds->dp_x_minmax[1]=-1.0e-13;
+  pl_bnds->dp_y_minmax[0]=pl_in->dp_y_minmax[0];
+  pl_bnds->dp_y_minmax[1]=pl_in->dp_y_minmax[1];
+
+  nco_poly_use_minmax_crn(pl_bnds);
+
+  /* do overlap */
+  *pl_wrp_left=nco_poly_do_vrl(pl_in, pl_bnds);
+
+  /* must add back the 360.0 we subtracted earlier */ 
+  if(*pl_wrp_left){
+    
+    for(idx=0;idx< (*pl_wrp_left)->crn_nbr;idx++)
+      (*pl_wrp_left)->dp_x[idx]+=360.0;
+
+    
+    nco_poly_add_minmax(*pl_wrp_left);
+
+    /*
+    if(  (*pl_wrp_left)->dp_x_minmax[1] - (*pl_wrp_left)->dp_x_minmax[0] > CELL_LONGITUDE_MAX )
+      *pl_wrp_left=nco_poly_free(*pl_wrp_left);
+     */
+    
+  }
+
+  /* now create bound for right polygon */
+  pl_bnds->dp_x_minmax[0]=0.0;
+  pl_bnds->dp_x_minmax[1]=pl_in->dp_x_minmax[1];
+  pl_bnds->dp_y_minmax[0]=pl_in->dp_y_minmax[0];
+  pl_bnds->dp_y_minmax[1]=pl_in->dp_y_minmax[1];
+
+  nco_poly_use_minmax_crn(pl_bnds);
+  
+  /* do overlap */
+  *pl_wrp_right=nco_poly_do_vrl(pl_in, pl_bnds);
+
+  if(*pl_wrp_right)
+  {
+    
+     nco_poly_add_minmax(*pl_wrp_right);
+     
+    /* 
+    if(  (*pl_wrp_right)->dp_x_minmax[1] - (*pl_wrp_right)->dp_x_minmax[0] > CELL_LONGITUDE_MAX )
+      *pl_wrp_right=nco_poly_free(*pl_wrp_right);
+    */
+  }
+     
+  
+
+  pl_in=nco_poly_free(pl_in);
+  pl_bnds=nco_poly_free(pl_bnds);
+
+
+
+  if( *pl_wrp_left ||  *pl_wrp_right )
+    return NCO_NOERR;
+  else
+    return NCO_ERR;
+  
+}
+
+
+
 
 nco_bool
 nco_poly_wrp_splt(
@@ -519,12 +728,18 @@ poly_sct ** pl_wrp_right)
 
   poly_sct *pl_in;
   poly_sct *pl_bnds;
-  // double dbl_le vft_thr_360=320.0;
 
-  /* for wrapping width must be longer than max */
-  if( pl->dp_x_minmax[1] - pl->dp_x_minmax[0] <  CELL_LONGITUDE_MAX )
-     return NCO_ERR;
 
+
+  if( grd_lon_typ ==  nco_grd_lon_Grn_wst || grd_lon_typ == nco_grd_lon_Grn_ctr)
+    return nco_poly_wrp_splt360(pl, pl_wrp_left, pl_wrp_right); 
+
+  else if( grd_lon_typ ==  nco_grd_lon_180_wst || grd_lon_typ == nco_grd_lon_180_ctr)
+    return nco_poly_wrp_splt180(pl, pl_wrp_left, pl_wrp_right); 
+
+  else
+    return NCO_ERR;
+  
   
   /* deal with 0-360 grid for starters */
   pl_in=nco_poly_dpl(pl);
@@ -833,6 +1048,8 @@ int *pl_nbr)
 
     char *fnc_nm="nco_poly_mk_lst()";
 
+    nco_bool bwrp;
+    
     double lon_wdt;
     double *lat_ptr=lat_crn;
     double *lon_ptr=lon_crn;
@@ -873,23 +1090,24 @@ int *pl_nbr)
       nco_poly_re_org(pl, lcl_dp_x, lcl_dp_y);          
 
 
-      fprintf(stdout,"/***** input polygon pl convex=%s\n ********************/\n", (nco_poly_is_convex(pl) ? "True": "False") );
+      fprintf(stdout,"/***** input polygon pl lon center=%f   convex=%s\n    ********************/\n", lon_ctr[idx],   (nco_poly_is_convex(pl) ? "True": "False") );
       nco_poly_prn(2,pl);  
 
       
-      lon_wdt=pl->dp_x_minmax[1] - pl->dp_x_minmax[0];
-      
+
+      /* check for wrapping -center outside min/max range */
+      bwrp=(  lon_ctr[idx] < pl->dp_x_minmax[0] || lon_ctr[idx] > pl->dp_x_minmax[1] );         
       
       if( grd_lon_typ == nco_grd_lon_nil || grd_lon_typ == nco_grd_lon_unk )
       {
 
-	if( lon_wdt < CELL_LONGITUDE_MAX)
+	if( !bwrp  )
 	{  
           pl_lst[idx_cnt++]=pl;
 	}  
         else
 	{      
-          (void)fprintf(stdout, "%s:  polygon(%d) width(%f) exceeds maximium \n", nco_prg_nm_get(), idx, lon_wdt, CELL_LONGITUDE_MAX );     
+          (void)fprintf(stdout, "%s:  polygon(%d) wrapped - but grd_lon_typ not specified \n", nco_prg_nm_get(), idx); 
           (void)fprintf(stdout, "/*******************************************/\n");     
 
 	  pl=nco_poly_free(pl);
@@ -900,7 +1118,7 @@ int *pl_nbr)
 
       
       /* if we are here then grd_lon_typ specifys a grid type  */
-      if( lon_wdt < CELL_LONGITUDE_MAX)
+      if( !bwrp)
       {   
           pl_lst[idx_cnt++]=pl;   
       }
@@ -937,7 +1155,7 @@ int *pl_nbr)
      else
      {
        if(nco_dbg_lvl_get() >=  nco_dbg_std ){
-         (void)fprintf(stdout, "%s: wrapping didnt work on this polygon(%d)\n", nco_prg_nm_get(), idx );     
+         (void)fprintf(stdout, "%s: split wrapping didnt work on this polygon(%d)\n", nco_prg_nm_get(), idx );     
          (void)fprintf(stdout, "/********************************/\n");     
        }
        
