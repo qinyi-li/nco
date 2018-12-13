@@ -1368,7 +1368,7 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
 
        if(nco_poly_is_convex(pl_vrl) == False )
        {    
-           fprintf(stdout,"%s:%s vrl polygon not convex  vrl ,in ,out\n", nco_prg_nm_get(), fnc_nm ); 
+	 fprintf(stdout,"%s:%s vrl polygon convex=0  vrl ,in convex=%d ,out convex=%d\n", nco_prg_nm_get(), fnc_nm, nco_poly_is_convex(pl_lst_in[idx]), nco_poly_is_convex(pl_out) ); 
            nco_poly_prn(2, pl_vrl);
            nco_poly_prn(2, pl_lst_in[idx]);
            nco_poly_prn(2, pl_out);   
