@@ -444,8 +444,8 @@ void AddPoint( tPolygond R, int *r, tPointd P)
 {
 
   
-  /* only add  point if its distinct from previous point */ 
-  if ( *r == 0  ||    (fabs(R[*r-1][0] - P[0]) >DSIGMA || fabs(R[*r-1][1] - P[1])>DSIGMA) )
+  /* only add  point if its distance from  from previous point is more than DSIGMA */ 
+  if ( *r == 0  ||  (  pow( (R[*r-1][0] - P[0]),2.0 )  + pow( (R[*r-1][1] - P[1]),2.0) > DAREA  ) )
   {  
 
     R[*r][0] = P[0];
