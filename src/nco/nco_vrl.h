@@ -26,6 +26,15 @@
 
 #define VP_MAX    1000            /* Max # of pts in polygon */
 
+#define ARC_MIN_LENGTH (1.0e-20d)
+
+/* this is 1.0e-20 * PI / 180.0 */
+#define ARC_MIN_LENGTH_RAD (1.0e-15d)
+
+/* if true then longitude 0-360 */
+/* we need this to convert 3D back to 2D */
+#define IS_LON_360 (1)
+
 
 
 #ifdef __cplusplus
@@ -35,20 +44,14 @@ extern "C" {
 
 
 
-  
-
-  
-
 typedef enum { Pin, Qin, Unknown } tInFlag;
 typedef int     tPointi[DIM];   /* type integer point */
 typedef double  tPointd[DIM];   /* type double point */
-
+typedef double  tPointds[5];    /* type spherical double point */
 
 typedef tPointi tPolygoni[VP_MAX]; /* type integer polygon */
 typedef tPointd tPolygond[VP_MAX]; /* type integer polygon */
-
-
-
+typedef tPointds tPolygonds[VP_MAX]; /* 3D sperical coords */
 
 
 /*---------------------------------------------------------------------
@@ -73,17 +76,49 @@ tInFlag InOut( tPointd p, tInFlag inflag, int aHB, int bHA );
 
 
 
-void    ClosePostscript( void );
-void	PrintSharedSeg( tPointd p, tPointd q );
+// void    ClosePostscript( void );
+// void	PrintSharedSeg( tPointd p, tPointd q );
 void    PrintPoly( tPolygond P, int n );
-//void    PrintPolyd( int r, tPolygond R );
-
+const char * prnInFlag(tInFlag in);
 
 int     Advance( int a, int *aa, int n, int inside, tPointi v );
-void	OutputPolygons( tPolygond P, tPolygond Q, int n, int m );
-int     ReadPoly( tPolygond P );
+// void	OutputPolygons( tPolygond P, tPolygond Q, int n, int m );
+// int     ReadPoly( tPolygond P );
 
 /*-------------------------------------------------------------------*/
+/* spherical methods */
+
+void    sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, int *r );
+char    sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q );
+
+int sLHS(tPointds Pi, tPointds Qi );
+nco_bool sFace( int iLHS, int iRHS, int jRHS  );
+
+double  sDot( tPointds a, tPointds b );
+double  sCross(tPointds a, tPointds b, tPointds c);
+void    sxCross( tPointds a, tPointds b, tPointds c );
+void    sAdi(tPointds a, tPointds b );
+void    sph2crt(tPointds a,  double *lon, double *lat, nco_bool bDeg);
+void    crt2sph(tPointd a, tPointds b);
+void    sphAddcrt(tPointds ds);
+void    sAddPoint( tPolygonds R, int *r, tPointds P);
+
+double latCorrect( double lat1, double lon1, double lon2  );
+
+void getLatCorrect_old(tPointds a, tPointds b, double *dp_min, double *dp_max );
+
+void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *dp_min, double *dp_max );
+
+nco_bool iBetween(double a, double b, double x  );
+nco_bool sLatLonBetween(tPointds a, tPointds b, tPointds x);
+char    sParallelDouble( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q );
+void prnPoint(const char *sMsg, tPointds p, int style, nco_bool bRet );
+
+
+
+/*-------------------------------------------------------------------*/
+
+
 
 #ifdef __cplusplus
 } /* end extern "C" */

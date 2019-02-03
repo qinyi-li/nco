@@ -13,7 +13,7 @@ not removed.
 --------------------------------------------------------------------
 */
 
-// #include "nco_vrl.h"
+#include "nco_vrl.h"
 
 
 /*
@@ -456,6 +456,15 @@ void AddPoint( tPolygond R, int *r, tPointd P)
     
 }
 
+const char * prnInFlag(tInFlag in)
+{
+  if(in == Pin)
+    return "Pin";
+  else if(in == Qin)
+    return "Qin";
+  else if(in == Unknown)
+    return "Unknown";
+}
 
 
 /*---------------------------------------------------------------------
@@ -463,32 +472,6 @@ Polygon I/O functions
 ---------------------------------------------------------------------*/
 
 
-/*
-   Reads in the coordinates of the vertices of a polygon from stdin,
-   puts them into P, and returns n, the number of vertices.
-   Formatting conventions: etc.
-*/
-int   ReadPoly( tPolygond P )
-{
-   int   n = 0;
-   int   nin;
-
-   scanf("%d", &nin);
-   /*printf("%%Polygon:\n");
-   printf("%%  i   x   y\n");*/
-   while ( (n < nin) && (scanf("%lf %lf",&P[n][0],&P[n][1]) != EOF) ) {
-      /*printf("%%%3d%4d%4d\n", n, P[n][0], P[n][1]);*/
-      ++n;
-   }
-/*
-   if (n < PMAX)
-      printf("%%n = %3d vertices read\n",n);
-   else   printf("Error in read_poly:  too many points; max is %d\n", PMAX);
-   putchar('\n');
-*/
-
-   return   n;
-}
 
 void PrintPoly(tPolygond R, int r)
 {
@@ -505,69 +488,802 @@ void PrintPoly(tPolygond R, int r)
 }  
 
 
-void   OutputPolygons(tPolygond P, tPolygond Q, int n, int m )
-{
-   int i;
-   double xmin, ymin, xmax, ymax;
-
-   /* Compute Bounding Box for Postscript header. */
-   xmin = xmax = P[0][0];
-   ymin = ymax = P[0][1];
-   for (i = 1; i < n; i++) {
-      if      ( P[i][0] > xmax ) xmax = P[i][0];
-      else if ( P[i][0] < xmin ) xmin = P[i][0];
-      if      ( P[i][1] > ymax ) ymax = P[i][1];
-      else if ( P[i][1] < ymin ) ymin = P[i][1];
-   }
-   for (i = 0; i < m; i++) {
-      if      ( Q[i][0] > xmax ) xmax = Q[i][0];
-      else if ( Q[i][0] < xmin ) xmin = Q[i][0];
-      if      ( Q[i][1] > ymax ) ymax = Q[i][1];
-      else if ( Q[i][1] < ymin ) ymin = Q[i][1];
-   }
 
 
-   /* PostScript header */
-   printf("%%!PS\n");
-   printf("%%%%Creator: convconv.c (Joseph O'Rourke)\n");
-   printf("%%%%BoundingBox: %f %f %f %f\n", xmin, ymin, xmax, ymax);
-   printf("%%%%EndComments\n");
-   printf(".00 .00 setlinewidth\n");
-   printf("%d %d translate\n", -xmin+100, -ymin+100 );
-   /* The +100 shifts the figure from the lower left corner. */
 
-   printf("\n%%Polygon P:\n");
-   printf("newpath\n");
-   printf("%f\t%f\tmoveto\n", P[0][0], P[0][1]);
-   for( i = 1; i <= n; i++ )
-      printf("%f\t%f\tlineto\n", P[i][0], P[i][1]);
-   
-   printf("closepath stroke\n");
+/* spherical functions */
+void  sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, int *r ) {
 
-   printf("\n%%Polygon Q:\n");
-   printf("newpath\n");
-   printf("%f\t%f\tmoveto\n", Q[0][0], Q[0][1]);
-   for( i = 1; i <= m; i++ )
-      printf("%f\t%f\tlineto\n", Q[i][0], Q[i][1]);
-   
-   printf("closepath stroke\n");
+   nco_bool flg_dbg=True;
 
-   printf("2 2 setlinewidth\n");
-   printf("newpath\n");
- }
+   nco_bool qpFace = False;
+   nco_bool pqFace = False;
+   nco_bool isGeared = False;
 
-void	PrintSharedSeg( tPointd p, tPointd q )
-{
-   printf("%%A int B:\n");
-   printf("%8.2lf %8.2lf moveto\n", p[0], p[1] );
-   printf("%8.2lf %8.2lf lineto\n", q[0], q[1] );
-   ClosePostscript();
+   int numIntersect=0;
+
+   int a = 0, a1 = 0, aa=0;
+   int b = 0, b1 = 0, bb=0;
+
+
+   int ipqLHS = 0;
+   int ip1qLHS = 0 ;
+   int iqpLHS = 0;
+   int iq1pLHS = 0 ;
+
+   double nx1;
+   double nx2;
+   double nx3;
+
+   char code='0';
+
+   tPointds p;
+   tPointds q;
+
+   tInFlag inflag= Unknown;
+
+
+   do{
+
+
+      a1 = (a + n - 1) % n;
+      b1 = (b + m - 1) % m;
+
+
+      tPointds Pcross;
+      tPointds Qcross;
+      tPointds Xcross;
+
+      nx1=sCross(P[a1], P[a], Pcross);
+      nx2=sCross(Q[b1], Q[b], Qcross);
+
+      nx3=sCross(Pcross,Qcross,Xcross);
+
+
+      ipqLHS = sLHS(P[a], Qcross);
+      ip1qLHS = sLHS(P[a1], Qcross);
+
+
+      /* imply rules facing if 0 */
+
+      if(ipqLHS==0 && ip1qLHS!=0)
+         ipqLHS=ip1qLHS*-1;
+      else if( ipqLHS != 0 && ip1qLHS == 0 )
+         ip1qLHS=ipqLHS*-1;
+
+
+      iqpLHS = sLHS(Q[b], Pcross);
+      iq1pLHS = sLHS(Q[b1], Pcross);
+
+      /* imply rules facing if 0 */
+
+      if(iqpLHS == 0 && iq1pLHS != 0)
+         iqpLHS=iq1pLHS*-1;
+      else if(iqpLHS != 0 && iq1pLHS == 0)
+         iq1pLHS=iqpLHS*-1;
+
+
+      /* now calculate face rules */
+      qpFace = sFace(ip1qLHS, ipqLHS, iqpLHS);
+      pqFace = sFace(iq1pLHS, iqpLHS, ipqLHS);
+
+      /* Xcross product near zero !! so make it zero*/
+      if(nx3< 1.0e-10)
+      {
+         ip1qLHS=0;
+         ipqLHS=0;
+         iq1pLHS=0;
+         iqpLHS=0;
+         qpFace=0;
+         pqFace=0;
+      }
+
+
+
+      if( isGeared == False)
+      {
+         if(  (ipqLHS == 1 && iqpLHS == 1) ||  ( qpFace && pqFace )     )
+         {
+            aa++;a++;
+         }
+         else
+         {
+            isGeared = True;
+         }
+      }
+
+      if(isGeared) {
+         code = sSegSegInt(P[a1], P[a], Q[b1], Q[b], p, q);
+
+
+         if (code == '1' || code == 'e') {
+
+            prnPoint("(): intersect", p,3,True  );
+
+            sAddPoint(R, r, p);
+
+            /*
+            if(code=='e')
+              sAddPoint(R, r, q);
+            */
+
+            if (numIntersect++ == 0) {
+               /* reset counters */
+               aa = 0;
+               bb = 0;
+            }
+
+
+
+            inflag = ( ipqLHS ==1 ? Pin : iqpLHS ==1 ? Qin : inflag );
+
+
+
+            printf("%%InOut sets inflag=%s\n", prnInFlag(inflag));
+
+         }
+
+         printf("numIntersect=%d code=%c (ipqLHS=%d, ip1qLHS=%d), (iqpLHS=%d, iq1pLHS=%d), (qpFace=%d pqFace=%d)\n",numIntersect, code, ipqLHS, ip1qLHS,  iqpLHS,iq1pLHS, qpFace,pqFace);
+
+
+
+         if (qpFace && pqFace)  {
+
+            /* Advance either P or Q which has previously arrived ? */
+            if(inflag == Pin) sAddPoint(R,r, P[a]);
+
+            aa++;a++;
+
+
+         } else if (qpFace) {
+            if(inflag == Qin) sAddPoint(R,r, Q[b]);
+
+            bb++;b++;
+
+
+            /* advance q */
+         } else if (pqFace) {
+            /* advance p */
+            if(inflag == Pin) sAddPoint(R,r,P[a]);
+
+            aa++;a++;
+
+         } else if (iqpLHS == -1) {
+            /* advance q */
+            //if(inflag== Qin) sAddPoint(R,r,Q[b]);
+            bb++;b++;
+
+            /* cross product zero  */
+         } else if( ipqLHS==0 && ip1qLHS==0 && iq1pLHS ==0 && iqpLHS ==0   ){
+            if(inflag==Pin)
+            {bb++;b++;}
+            else
+            {aa++;a++;}
+
+         }
+
+
+
+         else {
+            /* catch all */
+            if(inflag==Pin) sAddPoint(R,r,P[a]);
+            aa++;a++;
+
+         }
+
+      }
+
+      a%=n;
+      b%=m;
+
+      printf("\ndebug isGeared=%d a=%d aa=%d b=%d bb=%d \n",isGeared, a, aa, b, bb);
+
+      /* quick exit if current point is same a First point  - nb an exact match ?*/
+      if( *r >3 &&  R[0][3]==R[*r-1][3] && R[0][4]==R[*r-1][4] )
+      {
+         --*r;
+         break;
+      }
+
+
+   } while ( ((aa < n) || (bb < m)) && (aa < 2*n) && (bb < 2*m) );
+
 }
 
-void   ClosePostscript( void )
+char  sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q )
 {
-   printf("closepath stroke\n");
-   printf("showpage\n%%%%EOF\n");
+   int flg_dbg=1;
+   int flg_sx=0;
+
+   double nx1;
+   double nx2;
+   double nx3;
+
+   double darc;
+
+   tPointds Pcross;
+   tPointds Qcross;
+   tPointds Icross;
+
+
+
+   if(flg_sx) {
+      sxCross(a, b, Pcross);
+      sxCross(c, d, Qcross);
+
+      sphAddcrt(Pcross);
+      sphAddcrt(Qcross);
+
+      sxCross(Pcross, Qcross, Icross);
+      sphAddcrt(Icross);
+   }
+   else
+   {
+      nx1=sCross(a, b, Pcross);
+      nx2=sCross(c, d, Qcross);
+
+      nx3=sCross(Pcross, Qcross, Icross);
+      sphAddcrt(Icross);
+   }
+
+   darc=atan(nx3);
+
+   if(flg_dbg) {
+      prnPoint("sSegSegInt(): intersection", Icross, 3, True);
+      printf("sSegSegInt(): ||Pcross||=%.20g ||Qcross||=%.20g ||Icross||=%.20g arc=%.20g\n", nx1, nx2, nx3, darc);
+   }
+
+   /* Icross is zero, should really have a range rather than an explicit zero */
+   if( nx3 < 1.0e-15)
+      return sParallelDouble(a,b,c,d,p,q);
+
+
+   if( sLatLonBetween(a,b, Icross ) && sLatLonBetween(c,d, Icross) )
+   {
+      memcpy(p,Icross, sizeof(tPointds));
+      return '1';
+   }
+
+   /* try antipodal point */
+   Icross[0]*= -1.0;
+   Icross[1]*= -1.0;
+   Icross[2]*= -1.0;
+
+   sphAddcrt(Icross);
+
+   if( sLatLonBetween(a,b, Icross ) && sLatLonBetween(c,d, Icross) )
+   {
+
+      memcpy(p,Icross, sizeof(tPointds));
+      return '1';
+   }
+
+   return '0';
+
+
+
+
+
 }
 
-  
+
+/* takes a point and a cross product representing the normal to the arc plane */
+/* returns 1 if point on LHS of arc plane */
+/* returns -1 if point on RHS of arc plane */
+/* return 0 if point on the arc - (given suitable tolerances ) */
+int sLHS(tPointds Pi, tPointds Qcross )
+{
+   double ds;
+
+   ds=sDot(Pi,Qcross);
+
+   if(ds  > 0.0)
+      return 1;
+   else if(ds <0.0)
+      return -1;
+   else
+      return 0;
+
+
+   /*
+   ds=acos( sDot(Pi,Qcross) );
+
+   if( ds < M_PI_2 - ARC_MIN_LENGTH )
+     return 1;
+   else if ( ds > M_PI_2 + ARC_MIN_LENGTH )
+     return -1;
+   else
+     return 0;
+
+   */
+}
+
+/* implement face rules */
+nco_bool sFace( int iLHS, int iRHS, int jRHS  )
+{
+   if( iLHS == 1 && iRHS == -1 && jRHS == -1 )
+      return True;
+
+   if( iLHS == -1 && iRHS == 1 && jRHS == 1  )
+      return True;
+
+   return False;
+
+
+}
+
+
+
+double  sDot( tPointds a, tPointds b )
+{
+   int idx;
+   double sum=0.0;
+
+   for(idx=0; idx<3; idx++)
+      sum+=a[idx]*b[idx];
+
+   return sum;
+
+
+}
+
+double  sCross(tPointds a, tPointds b, tPointds c)
+{
+   //
+   int flg_dbg=0;
+   double n1;
+
+   c[0]=a[1]*b[2]-a[2]*b[1];
+   c[1]=a[2]*b[0]-a[0]*b[2];
+   c[2]=a[0]*b[1]-a[1]*b[0];
+
+   // normalize vector
+   n1=sqrt( c[0]*c[0]+c[1]*c[1] + c[2]*c[2] );
+
+   if( n1 >  0.0 && n1 != 1.0  )
+   {
+      c[0] /= n1;
+      c[1] /= n1;
+      c[2] /= n1;
+   }
+
+   if(flg_dbg)
+      printf("sCross(): n1=%f (%f, %f %f)\n", n1, c[0],c[1], c[2]);
+
+   return n1;
+
+}
+
+
+/* new method for calculating cross product */
+void sxCross( tPointds a, tPointds b, tPointds c  )
+{
+   int flg_dbg=1;
+
+   double n1;
+   double lon1;
+   double lon2;
+
+   double lat1;
+   double lat2;
+
+   lon1=a[3] * M_PI /180.0;
+   lat1=a[4] * M_PI /180.0;
+
+   lon2=b[3] * M_PI /180.0;
+   lat2=b[4] * M_PI /180.0;
+
+
+
+   c[0] =   sin(lat1+lat2) * cos( (lon1+lon2) / 2.0) * sin( (lon1-lon2)/2.0)
+            - sin(lat1-lat2) * sin ((lon1+lon2) / 2.0) * cos( (lon1-lon2)/2.0);
+
+   c[1] =   sin(lat1+lat2) * sin( (lon1+lon2) / 2.0) * sin( (lon1-lon2)/2.0)
+            + sin(lat1-lat2) * cos ((lon1+lon2) / 2.0) * cos( (lon1-lon2)/2.0);
+
+
+
+   c[2]=cos(lat1) * cos(lat2) * sin(lon2-lon1);
+
+
+   // normalize vector
+   n1=sqrt( c[0]*c[0]+c[1]*c[1] + c[2]*c[2] );
+
+   if( n1 != 0.0 && n1 !=1.0  )
+   {
+      c[0] /= n1;
+      c[1] /= n1;
+      c[2] /= n1;
+   }
+
+   if(flg_dbg)
+      printf("sxCross(): n1=%f (%f, %f %f)\n", n1, c[0],c[1], c[2]);
+
+
+
+}
+
+
+void  sAdi(tPointds a, tPointds b )
+{
+   /*
+   a[0]=b[0];
+   a[1]=b[1];
+   a[2]=b[2];
+   a[3]=b[3];
+   a[4]=b[4];
+   */
+
+   (void)memcpy(a,b, sizeof(tPointds));
+
+}
+
+
+void  sph2crt(tPointds a,  double *lon, double *lat, nco_bool bDeg)
+{
+
+   /* nb this returns range (-180, 180) */
+   *lon = atan2(a[1],a[0]) ;
+   if( *lon < 0.0 && IS_LON_360)
+      *lon+= (M_PI*2);
+
+   // b[1]= asin(a[2]) * 180.0 /M_PI;
+   *lat=atan2( a[2], sqrt( a[0]*a[0]+a[1]*a[1] ) ) ;
+
+   /* convert to degrees if required */
+   if(bDeg)
+   {
+      *lon*=(180.0 / M_PI );
+      *lat*=(180.0 / M_PI );
+
+   }
+
+   return;
+}
+
+void crt2sph(tPointd a, tPointds b)
+{
+   double lon;
+   double lat;
+
+   lon=a[0] * M_PI / 180.0;
+   lat=a[1] * M_PI / 180.0;
+
+
+   b[0] = cos(lat) * cos(lon);
+   b[1] = cos(lat) * sin(lon);
+   b[2] = sin(lat);
+
+   /* lat lon - we need this for bounding box */
+   b[3] = lon;
+   b[4] = lat;
+
+}
+
+
+void sphAddcrt(tPointds ds)
+{
+   sph2crt(ds, &ds[3], &ds[4],0 );
+}
+
+void sAddPoint( tPolygonds R, int *r, tPointds P)
+{
+   int flg_dbg=1;
+
+   double delta;
+
+
+   delta = ( *r==0 ? 0.0 :   2.0 *asin(    sqrt( pow( R[*r-1][0] - P[0],2 ) + pow( R[*r-1][1] - P[1],2 ) + pow( R[*r-1][2] - P[2],2 )  ) /2.0) );
+
+   if(flg_dbg)
+      prnPoint("aAddPoint():", P,3,True );
+
+
+
+   /* only add  point if its distinct from previous point */
+   if ( *r==0 ||  delta > ARC_MIN_LENGTH_RAD )
+   {
+
+      memcpy(R[*r], P, sizeof(tPointds));
+      (*r)++;
+   }
+
+
+}
+
+nco_bool iBetween(double a, double b, double x  )
+{
+
+   nco_bool sdiff=False;
+   int flg_dbg=0;
+
+   if(flg_dbg)
+      printf("iBetween(): a=%.20f, b=%.20f, x=%.20f\n", a, b, x);
+
+   if(fabs(b-a) < DSIGMA  )
+      sdiff=True;
+   else
+      sdiff=False;
+
+   if(sdiff) {
+      if (fabs(x - a) < DSIGMA || fabs(x - b) < DSIGMA)
+         return True;
+      else
+         return False;
+   }
+
+   if(  b >a &&  x>= a && x<=b  || b<a && x>=b && x<=a    )
+      return True;
+   else
+      return False;
+
+}
+
+/* assume latitude -90,90 */
+double latCorrect( double lat1, double lon1, double lon2  )
+{
+
+   double dp;
+
+   if( lon1 == lon2  || lat1==0.0 || lat1 == M_PI /2.0   || lat1 == -M_PI/2.0  )
+      return lat1;
+
+   //lat1=lat1*M_PI / 180.0;
+
+   dp= tan(lat1) / cos ( lon2-lon1 ) ;
+
+   dp=atan(dp);
+
+
+   return dp;
+
+
+}
+
+void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *dp_min, double *dp_max )
+{
+  double dswp;
+
+  if( lat2 >lat1 )
+  {
+    dswp=lat1;
+    lat1=lat2;
+    lat2=dswp;
+
+  }
+
+
+
+  /* lat1 & lat2 >0.0 */
+  if( lat1>0.0 && lat2 >=0.0)
+  {
+    *dp_max = latCorrect(lat1, lon1, lon2);
+    *dp_min = lat2;
+  }
+  else if( lat1 <= 0.0 && lat2<0.0 )
+  {
+    *dp_max = lat1;
+    *dp_min = latCorrect(lat2, lon1, lon2);
+  }
+
+  else if( lat1 >0.0 && lat2  < 0.0)
+  {
+    *dp_max=latCorrect(lat1, lon1, lon2);
+    *dp_min=latCorrect(lat2, lon1, lon2);
+
+  }
+  else
+  {
+    *dp_max=0.0;
+    *dp_min=0.0;
+
+  }
+
+
+  return;
+
+
+
+}
+
+
+void getLatCorrect_old(tPointds a, tPointds b, double *dp_min, double *dp_max )
+{
+
+   double lat1;
+   double lat2;
+
+   if( a[4] >= b[4] )
+   {
+      lat1 = a[4];
+      lat2 = b[4];
+   }
+   else
+   {
+      lat1 = b[4];
+      lat2 = a[4];
+   }
+
+
+   /* lat1 & lat2 >0.0 */
+   if( lat1>0.0 && lat2 >=0.0)
+   {
+      *dp_max = latCorrect(lat1, a[3], b[3]);
+      *dp_min = lat2;
+   }
+   else if( lat1 <= 0.0 && lat2<0.0 )
+   {
+      *dp_max = lat1;
+      *dp_min = latCorrect(lat2, a[3], b[3]);
+   }
+
+   else if( lat1 >0.0 && lat2  < 0.0)
+   {
+      *dp_max=latCorrect(lat1, a[3], b[3]);
+      *dp_min=latCorrect(lat2, a[3], b[3]);
+
+   }
+   else
+   {
+      *dp_max=0.0;
+      *dp_min=0.0;
+
+   }
+
+
+   return;
+
+}
+
+
+
+/* use crt coords to check bounds */
+nco_bool sLatLonBetween(tPointds a, tPointds b, tPointds x)
+{
+   int flg_dbg=1;
+   double lat_min;
+   double lat_max;
+
+   if(  iBetween(a[3], b[3], x[3]) == False )
+      return False;
+
+   /* special lat check */
+   //getLatCorrect(a,b, &lat_min,&lat_max);
+   getLatCorrect(a[3],a[4],b[3],b[4], &lat_min,&lat_max);
+
+
+   if(flg_dbg)
+      printf("sBetween(): lat_min=%f lat_max=%f lat=%f\n", lat_min, lat_max, x[4]);
+
+   if( x[4]>=lat_min && x[4]<=lat_max )
+      return True;
+   else
+      return False;
+
+   return False;
+
+
+}
+
+nco_bool sxBetween(tPointds a, tPointds b, tPointds c)
+{
+
+   if ( a[3] != b[3] )
+      return (  c[3] >= a[3] && c[3] <=b[3] ||  c[3] <= a[3] && c[3] >= b[3] ) ;
+   else
+      return (  c[4] >= a[4] && c[4] <=b[4] ||  c[4] <= a[4] && c[4] >= b[4] ) ;
+
+
+   /*
+   if ( a[3] != b[3] )
+     return (  a[3] <= c[3] && b[3] >= c[3] ||  a[3] >= c[3] && b[3] <= c[3] ) ;
+   else
+     return (  a[4] <= c[4] && b[4] >=c[4]   ||  a[4] >= c[4] && b[4] <= c[4] ) ;
+   */
+
+}
+
+
+char sParallelDouble( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q )
+{
+
+   int flg_dbg=1;
+
+   char code='0';
+   char *ptype="none";
+
+   if( sxBetween( a, b, c ) && sxBetween( a, b, d ) ) {
+      sAdi( p, c );
+      sAdi( q, d );
+      ptype="abc-abd";
+      code= 'e';
+   }
+   else if( sxBetween( c, d, a ) && sxBetween( c, d, b ) ) {
+      sAdi( p, a );
+      sAdi( q, b );
+      ptype="cda-cdb";
+      code= 'e';
+   }
+   else if( sxBetween( a, b, c ) && sxBetween( c, d, b ) ) {
+      sAdi( p, c );
+      sAdi( q, b );
+      ptype="abc-cdb";
+      code= 'e';
+   }
+   else if( sxBetween( a, b, c ) && sxBetween( c, d, a ) ) {
+      sAdi( p, c );
+      sAdi( q, a );
+      ptype="abc-cda";
+      code= 'e';
+   }
+   else if( sxBetween( a, b, d ) && sxBetween( c, d, b ) ) {
+      sAdi( p, d );
+      sAdi( q, b );
+      ptype="abd-cdb";
+      code= 'e';
+   }
+   else if( sxBetween( a, b, d ) && sxBetween( c, d, a ) ) {
+      sAdi( p, d );
+      sAdi( q, a );
+      ptype="abd-cda";
+      code= 'e';
+   }
+
+   if(flg_dbg)
+      printf("sParallelDouble(): code=%c type=%s\n", code, ptype);
+
+   return code;
+}
+
+
+
+void prnPoint(const char *sMsg, tPointds p, int style, nco_bool bRet )
+{
+
+   printf("%s ", sMsg);
+
+   switch(style)
+   {
+      case 0:
+      default:
+         printf( "(dx=%.20f, dy=%.20f, dz=%.20f), (lon=%.20f,lat=%.20f)",p[0], p[1], p[2], p[3], p[4] );
+       break;
+
+      case 1:
+         printf( "(dx=%.20f, dy=%.20f, dz=%.20f)",p[0], p[1], p[2] );
+       break;
+
+      case 2:
+         printf( "(lon=%.20f,lat=%.20f)",p[3], p[4] );
+       break;
+
+      case 3:
+         printf( "(lon=%.20f,lat=%.20f)",p[3] *180.0/M_PI,  p[4]*180/M_PI );
+       break;
+
+      case 4:
+         printf( "(dx=%.20f, dy=%.20f, dz=%.20f), (lon=%.20f,lat=%.20f)",p[0], p[1], p[2], p[3] *180.0/M_PI,  p[4]*180/M_PI);
+       break;
+
+   }
+
+   if(bRet)
+      printf("\n");
+   else
+      printf(" * ");
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
