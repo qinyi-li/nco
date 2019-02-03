@@ -31,8 +31,12 @@ nco_poly_free
 poly_sct *   
 nco_poly_init
 (void)
-{  
+{
+
+
   poly_sct *pl;
+
+  pl->pl_typ=poly_none;
 
   pl=(poly_sct*)nco_malloc( sizeof(poly_sct));
 
@@ -65,8 +69,10 @@ nco_poly_dpl
   
   pl_cpy=nco_poly_init();
 
+
   crn_nbr_in=pl->crn_nbr;
 
+  pl_cpy->pl_typ=pl->pl_typ;
   pl_cpy->stat=pl->stat;
   pl_cpy->area=pl->area;
   pl_cpy->crn_nbr=crn_nbr_in;
@@ -104,10 +110,14 @@ nco_poly_dpl
   
 poly_sct *
 nco_poly_init_crn
-(int crn_nbr_in)
+(poly_typ_enm pl_typ,
+int crn_nbr_in)
 {
   poly_sct *pl;
+
   pl=nco_poly_init();
+
+  pl->pl_typ=pl_typ;
 
   pl->crn_nbr=crn_nbr_in;
 
@@ -122,7 +132,8 @@ nco_poly_init_crn
 
 poly_sct *
 nco_poly_init_lst
-(int arr_nbr,
+(poly_typ_enm pl_typ,
+ int arr_nbr,
  int mem_flg,
  double *dp_x_in,
  double *dp_y_in)
@@ -163,7 +174,7 @@ nco_poly_init_lst
  }
  else
  {
-   pl=nco_poly_init_crn(idx); 
+   pl=nco_poly_init_crn(pl_typ, idx);
    memcpy(pl->dp_x, dp_x_in, sizeof(double) *idx);
    memcpy(pl->dp_y, dp_y_in, sizeof(double) *idx);   
    
@@ -213,6 +224,12 @@ void nco_poly_add_minmax
     
     
   }
+
+  /* add correction to latitude bounding box */
+
+
+
+
 
   return; 
   
@@ -340,7 +357,7 @@ nco_poly_prn
   switch(style){ 
 
     case 0:
-      (void)fprintf(stdout,"\n%s: crn_nbr=%d stat=%d mem_flg=%d area=%f\n", nco_prg_nm_get(), pl->crn_nbr, pl->stat, pl->mem_flg, pl->area);      
+      (void)fprintf(stdout,"\n%s: pl_typ=%d, crn_nbr=%d stat=%d mem_flg=%d area=%f\n", nco_prg_nm_get(),pl->pl_typ, pl->crn_nbr, pl->stat, pl->mem_flg, pl->area);
       (void)fprintf(stdout,"dp_x ");
       for(idx=0; idx<pl->crn_nbr; idx++)
 	(void)fprintf(stdout,"%20.14f, ",pl->dp_x[idx]);
@@ -409,7 +426,7 @@ int nbr_v)
   int sz;
   poly_sct *pl;
   
-  pl=nco_poly_init_crn(nbr_v);
+  pl=nco_poly_init_crn( poly_crt,  nbr_v);
 
   for(idx=0;idx<nbr_v;idx++)
   {
@@ -548,7 +565,7 @@ poly_sct ** pl_wrp_right)
  
   
   /*  create right intersection polygon */
-  pl_bnds=nco_poly_init_crn(4);              
+  pl_bnds=nco_poly_init_crn(pl->pl_typ, 4);
 
   pl_bnds->dp_x_minmax[0]=180.0;
   pl_bnds->dp_x_minmax[1]=pl_in->dp_x_minmax[1];
@@ -648,7 +665,7 @@ poly_sct ** pl_wrp_right)
  
   
   /*  create left intersection polygon */
-  pl_bnds=nco_poly_init_crn(4);              
+  pl_bnds=nco_poly_init_crn(pl->pl_typ, 4);
 
   pl_bnds->dp_x_minmax[0]=pl_in->dp_x_minmax[0];
   pl_bnds->dp_x_minmax[1]=-1.0e-13;
@@ -764,7 +781,7 @@ poly_sct ** pl_wrp_right)
  
   
   /*  create left intersection polygon */
-  pl_bnds=nco_poly_init_crn(4);              
+  pl_bnds=nco_poly_init_crn(pl->pl_typ, 4);
 
   pl_bnds->dp_x_minmax[0]=pl_in->dp_x_minmax[0];
   pl_bnds->dp_x_minmax[1]=-1.0e-13;
@@ -1039,6 +1056,7 @@ double *lon_crn, /* I [dgr] Longitude corners of source grid */
 size_t grd_sz, /* I [nbr] Number of elements in single layer of source grid */
 long grd_crn_nbr, /* I [nbr] Maximum number of corners in source gridcell */
 nco_grd_lon_typ_enm grd_lon_typ, /* I [num] if not nil then split cells that straddle Greenwich or Dateline  */
+poly_typ_enm pl_typ,
 int *pl_nbr)
 {
 
@@ -1075,7 +1093,7 @@ int *pl_nbr)
 	continue;
 
       
-      pl=nco_poly_init_lst( grd_crn_nbr,0, lon_ptr, lat_ptr);
+      pl=nco_poly_init_lst(pl_typ, grd_crn_nbr,0, lon_ptr, lat_ptr);
       lon_ptr+=(size_t)grd_crn_nbr;
       lat_ptr+=(size_t)grd_crn_nbr;
 
@@ -1211,49 +1229,6 @@ int idx;
 
 }
 
-/* substitute function as kd search not working  */
-
-int
-nco_poly_nearest_intersect(
-poly_sct** pl_lst,		   
-int pl_nbr,
-KDPriority *list,	      
-int nbr_lst,
-kd_box Xq)
-{
-  size_t idx=0;
-  size_t jdx=0;
-  kd_box Xm;
- 
-  
-  for(idx=0; idx<pl_nbr; idx++)
-  { 
-    Xm[KD_LEFT]  =  pl_lst[idx]->dp_x_minmax[0];
-    Xm[KD_RIGHT] =  pl_lst[idx]->dp_x_minmax[1];
-    Xm[KD_BOTTOM] = pl_lst[idx]->dp_y_minmax[0];
-    Xm[KD_TOP]    = pl_lst[idx]->dp_y_minmax[1];    
-
-    if( BOXINTERSECT(Xq, Xm ) )
-    {  
-      for(jdx=0; jdx<nbr_lst; jdx++)
-      {	
-	if(list[jdx].elem == (KDElem*)NULL)
-	 { 
-	   //list[jdx].pl=pl_lst[idx]->item;
-	   list[jdx].elem = (KDElem*)pl_lst[idx];
-	    break;
-	 } 
-         if( jdx==nbr_lst)
-           return nbr_lst;
-      }
-
-    } 
-
-  }
-
-  return jdx;  
-}
-  
 
 poly_sct **
 nco_poly_mk_vrl_lst(   /* create overlap mesh */

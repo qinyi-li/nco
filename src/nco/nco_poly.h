@@ -26,11 +26,18 @@ extern "C" {
 /* filter out cells  larger than below  */   
 #define CELL_LATITUDE_MAX  30.0
 #define CELL_LONGITUDE_MAX 180.0
-  
+
+  typedef enum {
+     poly_none,
+     poly_sph,
+     poly_crt
+  } poly_typ_enm;
 
   
   typedef struct{
-  
+
+    poly_typ_enm pl_typ;
+
     double *dp_x;    /* x  vertices */
     double *dp_y;    /* y vertices */
     double *dp_xyz;  /* maybe useful for 3D stuff */ 
@@ -56,14 +63,16 @@ extern "C" {
 
   poly_sct *
   nco_poly_init_lst
-  (int arr_nbr,
+  (poly_typ_enm pl_typ,
+   int arr_nbr,
    int mem_flg,
    double *dp_x_in,
    double *dp_y_in);
 
   poly_sct *
   nco_poly_init_crn
-  (int crn_nbr_in);
+  (poly_typ_enm pl_typ,
+  int crn_nbr_in);
   
   poly_sct*
   nco_poly_dpl
@@ -139,7 +148,8 @@ extern "C" {
    size_t grd_sz, /* I [nbr] Number of elements in single layer of source grid */
    long grd_crn_nbr, /* I [nbr] Maximum number of corners in source gridcell */
    nco_grd_lon_typ_enm grd_lon_typ, /* I [num] if not nil then split cells that straddle Greenwich or Dateline  */
-   int *pl_nbr);    /* O [nbr] size  poly_sct */  
+   poly_typ_enm pl_typ,
+   int *pl_nbr);    /* O [nbr] size  poly_sct */
 		   
    poly_sct **
    nco_poly_lst_free(
