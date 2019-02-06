@@ -811,6 +811,8 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
     int pl_cnt_in=0;
     int pl_cnt_out=0;
 
+    poly_typ_enm pl_typ=poly_crt;
+
     poly_sct **pl_lst_in;
     poly_sct **pl_lst_out;
 
@@ -818,9 +820,9 @@ nco_msh_mk /* [fnc] Compute overlap mesh and weights */
     grd_lon_typ_in=nco_grd_lon_Grn_ctr;
     grd_lon_typ_out=nco_grd_lon_Grn_ctr;
 
-    pl_lst_out =nco_poly_mk_lst(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, grd_lon_typ_out,  &pl_cnt_out);
+    pl_lst_out =nco_poly_mk_lst(area_out, msk_out, lat_ctr_out,lon_ctr_out, lat_crn_out, lon_crn_out, grd_sz_out, (size_t)grd_crn_nbr_out, grd_lon_typ_out,pl_typ,  &pl_cnt_out);
 
-    pl_lst_in =nco_poly_mk_lst(area_in, msk_in, lat_ctr_in,lon_ctr_in, lat_crn_in, lon_crn_in, grd_sz_in, (size_t)grd_crn_nbr_in, grd_lon_typ_in, &pl_cnt_in);
+    pl_lst_in =nco_poly_mk_lst(area_in, msk_in, lat_ctr_in,lon_ctr_in, lat_crn_in, lon_crn_in, grd_sz_in, (size_t)grd_crn_nbr_in, grd_lon_typ_in, pl_typ, &pl_cnt_in);
 
 
     /* call the overlap routine */
