@@ -226,8 +226,22 @@ void nco_poly_add_minmax
   }
 
   /* add correction to latitude bounding box */
+  if(pl->pl_typ == poly_sph)
+  {
+    double lat_min;
+    double lat_max;
+    nco_bool bDeg=1;
+
+    /* do it in degrees for now */
+
+    getLatCorrect( pl->dp_x_minmax[0], pl->dp_y_minmax[1], pl->dp_x_minmax[1], pl->dp_y_minmax[0], &lat_min, &lat_max, bDeg);
+
+    pl->dp_y_minmax[0]=lat_min;
+    pl->dp_y_minmax[1]=lat_max;
 
 
+
+  }
 
 
 
@@ -397,10 +411,37 @@ nco_poly_prn
      
 }
 
+void nco_poly_2_sph(
+poly_sct *pl,
+tPolygonds sP,
+int *nbr_vert
+)
+{
+  int idx;
+  int sz;
+
+  /* temporary var */
+  tPointd dTmp;
+
+  sz=pl->crn_nbr;
+
+  /* remember input is in degress and sP[idx][3] and sP[idx][4] is in Radians */
+
+  for(idx=0 ; idx<sz; idx++){
+    dTmp[0]=pl->dp_x[idx];
+    dTmp[1]=pl->dp_y[idx];
+    crt2sph(dTmp, sP[idx]);
+  }
+
+
+
+}
+
+
 void
-nco_poly_new_2_old(
-poly_sct* pl,
-tPolygond P,		   
+nco_poly_2_crt(
+poly_sct *pl,
+tPolygond P,
 int *nbr_v)
 {  
   int idx;
@@ -450,36 +491,59 @@ poly_sct *pl_out){
 
   
  int iret=0; 
- int nbr_p=0;
- int nbr_q=0;
- int nbr_r=0;
 
  char fnc_nm[]="nco_poly_do_vrl()";
   
  poly_sct *pl_vrl;
   
 
- tPolygond P ;
- tPolygond Q ;
- tPolygond R ;
+ if(pl_in->pl_typ == poly_crt ) {
 
- nco_poly_new_2_old(pl_in,  P, &nbr_p);
- nco_poly_new_2_old(pl_out, Q, &nbr_q);
-   
- 
- 
-  /* for now just copy pl_in so  we can test other functions */
- // pl_vrl=nco_poly_dpl( pl_in);
-  
+   int nbr_p=0;
+   int nbr_q=0;
+   int nbr_r=0;
 
- iret = ConvexIntersect(P, Q, R, nbr_p, nbr_q, &nbr_r);
+   tPolygond P;
+   tPolygond Q;
+   tPolygond R;
 
- if(nbr_r <3 )  
-   return (poly_sct*)NULL_CEWI;
- 
- 
- 
- pl_vrl=nco_poly_old_2_new(R, nbr_r); 
+   nco_poly_2_crt(pl_in, P, &nbr_p);
+   nco_poly_2_crt(pl_out, Q, &nbr_q);
+
+
+
+   /* for now just copy pl_in so  we can test other functions */
+   // pl_vrl=nco_poly_dpl( pl_in);
+
+
+   iret = ConvexIntersect(P, Q, R, nbr_p, nbr_q, &nbr_r);
+
+   if (nbr_r < 3)
+     return (poly_sct *) NULL_CEWI;
+
+
+   pl_vrl = nco_poly_old_2_new(R, nbr_r);
+
+ }
+ else if( pl_in->pl_typ== poly_sph)
+ {
+   int nbr_p=0;
+   int nbr_q=0;
+   int nbr_r=0;
+
+   tPolygonds sP;
+   tPolygonds sQ;
+   tPolygonds sR;
+
+   nco_poly_2_sph(pl_in, sP, &nbr_p);
+   nco_poly_2_sph(pl_out, sQ, &nbr_q);
+
+   iret = sConvexIntersect(sP, sQ, sR, nbr_p, nbr_q, &nbr_r);
+
+
+
+ }
+
 
 
  /*
