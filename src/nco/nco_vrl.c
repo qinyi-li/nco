@@ -485,14 +485,28 @@ void PrintPoly(tPolygond R, int r)
    printf("End Polygon\n");
 
 
-}  
+}
 
+void sPrintPoly(tPolygonds sR, int r, int istyle)
+{
+  int idx;
+
+  printf("\nSpherical Polygon\n");
+
+  for( idx = 0; idx < r; idx++ )
+    prnPoint(">",sR[idx],istyle,True );
+    //printf("%20.14f %20.14f\n", sR[idx][0], sR[idx][1]);
+
+  printf("End Polygon\n");
+
+
+}
 
 
 
 
 /* spherical functions */
-void  sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, int *r ) {
+int sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, int *r ) {
 
    nco_bool flg_dbg=True;
 
@@ -688,6 +702,8 @@ void  sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, 
 
    } while ( ((aa < n) || (bb < m)) && (aa < 2*n) && (bb < 2*m) );
 
+   return EXIT_SUCCESS;
+
 }
 
 char  sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q )
@@ -852,6 +868,14 @@ double  sCross(tPointds a, tPointds b, tPointds c)
 
    return n1;
 
+}
+
+double sRadius(tPointds a){
+  double n1;
+
+  n1=sqrt( a[0]*a[0]+a[1]*a[1] + a[2]*a[2] );
+
+  return n1;
 }
 
 
@@ -1040,17 +1064,28 @@ double latCorrect( double lat1, double lon1, double lon2  )
 
 }
 
-void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *dp_min, double *dp_max )
+void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *dp_min, double *dp_max, nco_bool bDeg)
 {
-  double dswp;
+
 
   if( lat2 >lat1 )
   {
+    double dswp;
+
     dswp=lat1;
     lat1=lat2;
     lat2=dswp;
 
   }
+
+  if(bDeg)
+  {
+    lat1 *= M_PI / 180.0;
+    lat1 *= M_PI / 180.0;
+    lon1 *= M_PI / 180.0;
+    lon2 *= M_PI / 180.0;
+  }
+
 
 
 
@@ -1079,6 +1114,12 @@ void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *d
 
   }
 
+  /* convert back to degrees */
+  if(bDeg)
+  {
+    *dp_max *= 180.0 / M_PI;
+    *dp_min *= 180.0 / M_PI;
+  }
 
   return;
 
@@ -1140,7 +1181,11 @@ void getLatCorrect_old(tPointds a, tPointds b, double *dp_min, double *dp_max )
 /* use crt coords to check bounds */
 nco_bool sLatLonBetween(tPointds a, tPointds b, tPointds x)
 {
+
+   /* working in radians here */
+   nco_bool bDeg=0;
    int flg_dbg=1;
+
    double lat_min;
    double lat_max;
 
@@ -1149,7 +1194,7 @@ nco_bool sLatLonBetween(tPointds a, tPointds b, tPointds x)
 
    /* special lat check */
    //getLatCorrect(a,b, &lat_min,&lat_max);
-   getLatCorrect(a[3],a[4],b[3],b[4], &lat_min,&lat_max);
+   getLatCorrect(a[3],a[4],b[3],b[4], &lat_min,&lat_max, bDeg);
 
 
    if(flg_dbg)
@@ -1274,6 +1319,50 @@ void prnPoint(const char *sMsg, tPointds p, int style, nco_bool bRet )
 
 }
 
+nco_bool sConvex(tPolygonds sP, int nbr_vrt)
+{
+
+int flg_dbg=1;
+int idx;
+int idx_pre;
+int idx_nex;
+
+double dp;
+double theta;
+double rad1=1.0;
+double rad=1.0;
+
+tPointds aCross;
+tPointds bCross;
+
+for(idx=0; idx<nbr_vrt;idx++)
+{
+  idx_pre=(idx + nbr_vrt -1)% nbr_vrt;
+  idx_nex=(idx + nbr_vrt +1)% nbr_vrt;
+
+  sCross(sP[idx], sP[idx_pre],aCross);
+  sCross(sP[idx], sP[idx_nex], bCross);
+
+  //rad1 = sRadius(aCross);
+  //rad  = sRadius(bCross);
+  dp=sDot( aCross, bCross);
+
+
+  // dp=sDot(sP[idx1], sP[idx]) / rad1 /rad;
+  theta=acos(dp);
+
+  if(flg_dbg)
+    printf("sConvex():, %d angle=%f\n", idx, theta*180.0/M_PI);
+
+  if(theta > 2.0*M_PI   )
+     return False;
+
+}
+
+return True;
+
+
+}
 
 
 

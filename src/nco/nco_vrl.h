@@ -88,7 +88,7 @@ int     Advance( int a, int *aa, int n, int inside, tPointi v );
 /*-------------------------------------------------------------------*/
 /* spherical methods */
 
-void    sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, int *r );
+int  sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, int *r );
 char    sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q );
 
 int sLHS(tPointds Pi, tPointds Qi );
@@ -96,6 +96,8 @@ nco_bool sFace( int iLHS, int iRHS, int jRHS  );
 
 double  sDot( tPointds a, tPointds b );
 double  sCross(tPointds a, tPointds b, tPointds c);
+double sRadius(tPointds a);
+
 void    sxCross( tPointds a, tPointds b, tPointds c );
 void    sAdi(tPointds a, tPointds b );
 void    sph2crt(tPointds a,  double *lon, double *lat, nco_bool bDeg);
@@ -107,14 +109,15 @@ double latCorrect( double lat1, double lon1, double lon2  );
 
 void getLatCorrect_old(tPointds a, tPointds b, double *dp_min, double *dp_max );
 
-void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *dp_min, double *dp_max );
+void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *dp_min, double *dp_max, nco_bool bDeg);
 
 nco_bool iBetween(double a, double b, double x  );
 nco_bool sLatLonBetween(tPointds a, tPointds b, tPointds x);
 char    sParallelDouble( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q );
 void prnPoint(const char *sMsg, tPointds p, int style, nco_bool bRet );
 
-
+nco_bool sConvex(tPolygonds sP, int np);
+void sPrintPoly(tPolygonds sR, int r, int istyle);
 
 /*-------------------------------------------------------------------*/
 
