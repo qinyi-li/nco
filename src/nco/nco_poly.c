@@ -165,6 +165,8 @@ nco_poly_init_lst
  {
 
    pl=nco_poly_init();
+   pl->pl_typ=pl_typ;
+
    pl->mem_flg=1;
    pl->crn_nbr=idx;
  
@@ -483,25 +485,52 @@ int nbr_v)
   
 }
 
-  
+poly_sct*
+nco_poly_sph_2_new(
+tPolygonds sP,
+int nbr_v)
+{
+  int idx;
+  int sz;
+  poly_sct *pl;
+
+  pl=nco_poly_init_crn( poly_sph,  nbr_v);
+
+  for(idx=0;idx<nbr_v;idx++)
+  {
+
+    pl->dp_x[idx]=sP[idx][3]*180.0 /M_PI;
+    pl->dp_y[idx]=sP[idx][4]*180.0 /M_PI;
+
+  }
+
+  nco_poly_add_minmax(pl);
+
+  return pl;
+
+}
+
+
 poly_sct*
 nco_poly_do_vrl(
 poly_sct *pl_in,
 poly_sct *pl_out){
 
   
- int iret=0; 
+ int iret=0;
 
- char fnc_nm[]="nco_poly_do_vrl()";
+ int nbr_p=pl_in->crn_nbr;
+ int nbr_q=pl_out->crn_nbr;
+ int nbr_r=0;
+
+
+  char fnc_nm[]="nco_poly_do_vrl()";
   
  poly_sct *pl_vrl;
   
 
  if(pl_in->pl_typ == poly_crt ) {
 
-   int nbr_p=0;
-   int nbr_q=0;
-   int nbr_r=0;
 
    tPolygond P;
    tPolygond Q;
@@ -527,19 +556,26 @@ poly_sct *pl_out){
  }
  else if( pl_in->pl_typ== poly_sph)
  {
-   int nbr_p=0;
-   int nbr_q=0;
-   int nbr_r=0;
-
    tPolygonds sP;
    tPolygonds sQ;
    tPolygonds sR;
 
+   if(nco_dbg_lvl_get() >10 )
+     fprintf(stdout,"%s: entered sph code branch nbr_p=%d nbr_q=%d\n",__FUNCTION__, nbr_p, nbr_q );
+
    nco_poly_2_sph(pl_in, sP, &nbr_p);
    nco_poly_2_sph(pl_out, sQ, &nbr_q);
 
+   if(nbr_p <3 || nbr_q < 3)
+     return (poly_sct *) NULL_CEWI;
+
+
    iret = sConvexIntersect(sP, sQ, sR, nbr_p, nbr_q, &nbr_r);
 
+   if (nbr_r < 3)
+     return (poly_sct *) NULL_CEWI;
+
+   pl_vrl = nco_poly_sph_2_new(sR, nbr_r);
 
 
  }
@@ -1172,8 +1208,15 @@ int *pl_nbr)
       nco_poly_re_org(pl, lcl_dp_x, lcl_dp_y);          
 
 
+      if(pl->dp_x_minmax[0] <0.0 || (pl->dp_x_minmax[1] - pl->dp_x_minmax[1]) > 30  )
+      {
+        pl=nco_poly_free(pl);
+        continue;
+
+      }
+
       fprintf(stdout,"/***** input polygon pl lon center=%f   convex=%s\n    ********************/\n", lon_ctr[idx],   (nco_poly_is_convex(pl) ? "True": "False") );
-      nco_poly_prn(2,pl);  
+      nco_poly_prn(0,pl);
 
       
 
@@ -1182,6 +1225,8 @@ int *pl_nbr)
       
       if( grd_lon_typ == nco_grd_lon_nil || grd_lon_typ == nco_grd_lon_unk )
       {
+
+
 
 	if( !bwrp  )
 	{  
@@ -1293,9 +1338,8 @@ int idx;
 
 }
 
-
 poly_sct **
-nco_poly_mk_vrl_lst(   /* create overlap mesh */
+nco_poly_mk_vrl_lst(   /* create overlap mesh  for crt polygons */
  poly_sct ** pl_lst_in,
  int pl_cnt_in,
  poly_sct ** pl_lst_out,
@@ -1439,5 +1483,148 @@ nco_poly_mk_vrl_lst(   /* create overlap mesh */
  
  return pl_lst_vrl;
 
-}  
+}
+
+poly_sct **
+nco_poly_mk_vrl_lst_sph(  /* create overlap mesh  for sph polygons */
+poly_sct ** pl_lst_in,
+int pl_cnt_in,
+poly_sct ** pl_lst_out,
+int pl_cnt_out,
+int *pl_cnt_vrl_ret){
+
+/* just duplicate output list to overlap */
+
+  size_t idx;
+  size_t jdx;
+  int sz;
+  int max_nbr_vrl=1000;
+  int pl_cnt_vrl=0;
+
+  char *chr_ptr;
+  char fnc_nm[]="nco_poly_mk_vrl()";
+
+  /* buffers  used in nco-poly_re_org() */
+  double lcl_dp_x[VP_MAX]={0};
+  double lcl_dp_y[VP_MAX]={0};
+
+
+  kd_box size;
+
+  poly_sct ** pl_lst_vrl=NULL_CEWI;
+
+  KDElem *my_elem;
+  KDTree *rtree;
+
+  KDPriority *list;
+
+  list = (KDPriority *)nco_calloc(sizeof(KDPriority),(size_t)max_nbr_vrl);
+
+  printf("INFO - entered function nco_poly_mk_vrl\n");
+
+  /* create kd_tree from output polygons */
+  rtree=kd_create();
+
+  /* populate kd_tree */
+  for(idx=0 ; idx<pl_cnt_out;idx++){
+
+
+    my_elem=(KDElem*)nco_calloc((size_t)1,sizeof (KDElem) );
+
+    size[KD_LEFT]  =  pl_lst_out[idx]->dp_x_minmax[0];
+    size[KD_RIGHT] =  pl_lst_out[idx]->dp_x_minmax[1];
+
+    size[KD_BOTTOM] = pl_lst_out[idx]->dp_y_minmax[0];
+    size[KD_TOP]    = pl_lst_out[idx]->dp_y_minmax[1];
+
+    //chr_ptr=(char*)pl_lst_out[idx];
+
+    kd_insert(rtree, (kd_generic)pl_lst_out[idx], size, (char*)my_elem);
+
+  }
+
+  /* rebuild tree for faster access */
+  kd_rebuild(rtree);
+  kd_rebuild(rtree);
+
+
+  /* kd_print(rtree); */
+
+/* start main loop over input polygons */
+  for(idx=0 ; idx<pl_cnt_in ;idx++ )
+  {
+    int cnt_vrl=0;
+    int cnt_vrl_on=0;
+
+    (void)nco_poly_set_priority(max_nbr_vrl,list);
+    /* get bounds of polygon in */
+    size[KD_LEFT]  =  pl_lst_in[idx]->dp_x_minmax[0];
+    size[KD_RIGHT] =  pl_lst_in[idx]->dp_x_minmax[1];
+
+    size[KD_BOTTOM] = pl_lst_in[idx]->dp_y_minmax[0];
+    size[KD_TOP]    = pl_lst_in[idx]->dp_y_minmax[1];
+
+    /* find overlapping polygons */
+
+    cnt_vrl=kd_nearest_intersect(rtree, size, max_nbr_vrl,list );
+
+
+    /* nco_poly_prn(2, pl_lst_in[idx] ); */
+
+
+    for(jdx=0; jdx <cnt_vrl ;jdx++){
+
+      poly_sct *pl_vrl=(poly_sct*)NULL_CEWI;
+      poly_sct *pl_out=(poly_sct*)list[jdx].elem->item;           ;
+
+      if(pl_lst_in[idx]->pl_typ != pl_out->pl_typ)
+      {
+        fprintf(stdout,"poly type mismatch\n", fnc_nm);
+        continue;
+      }
+
+      pl_vrl=nco_poly_do_vrl(pl_lst_in[idx], pl_out);
+
+      if(pl_vrl){
+        // nco_poly_re_org(pl_vrl, lcl_dp_x, lcl_dp_y);
+        pl_lst_vrl=(poly_sct**)nco_realloc(pl_lst_vrl, sizeof(poly_sct*) * (pl_cnt_vrl+1));
+        pl_lst_vrl[pl_cnt_vrl]=pl_vrl;
+        pl_cnt_vrl++;
+        cnt_vrl_on++;
+
+        if(0 && nco_poly_is_convex(pl_vrl) == False )
+        {
+          fprintf(stdout,"%s:%s vrl polygon convex=0  vrl ,in convex=%d ,out convex=%d\n", nco_prg_nm_get(), fnc_nm, nco_poly_is_convex(pl_lst_in[idx]), nco_poly_is_convex(pl_out) );
+          nco_poly_prn(2, pl_vrl);
+          nco_poly_prn(2, pl_lst_in[idx]);
+          nco_poly_prn(2, pl_out);
+
+        }
+
+        //fprintf(stdout,"Overlap polygon to follow\n");
+        //nco_poly_prn(2, pl_vrl);
+
+      }
+
+
+    }
+
+    if( nco_dbg_lvl_get() >= nco_dbg_dev )
+      (void) fprintf(stdout, "%s: total overlaps=%d for polygon %d - potential overlaps=%d actual overlaps=%d\n", nco_prg_nm_get(), pl_cnt_vrl,  idx, cnt_vrl, cnt_vrl_on);
+
+
+  }
+
+
+  kd_destroy(rtree,NULL);
+
+  list = (KDPriority *)nco_free(list);
+
+  /* return size of list */
+  *pl_cnt_vrl_ret=pl_cnt_vrl;
+
+
+  return pl_lst_vrl;
+
+}
 

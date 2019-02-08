@@ -27,10 +27,12 @@ extern "C" {
 #define CELL_LATITUDE_MAX  30.0
 #define CELL_LONGITUDE_MAX 180.0
 
+#define DEBUG_VRL (0)
+
   typedef enum {
-     poly_none,
-     poly_sph,
-     poly_crt
+     poly_none=0,
+     poly_sph=1,
+     poly_crt=2
   } poly_typ_enm;
 
   
@@ -158,7 +160,15 @@ extern "C" {
 
 
    poly_sct **
-   nco_poly_mk_vrl_lst(   /* create overlap mesh */
+   nco_poly_mk_vrl_lst(   /* create overlap mesh  for crt */
+   poly_sct ** pl_lst_in,
+   int pl_cnt_in,
+   poly_sct ** pl_lst_out,
+   int pl_cnt_out,
+   int *pl_cnt_vrl);
+
+   poly_sct **
+   nco_poly_mk_vrl_lst_sph(   /* create overlap mesh  for crt */
    poly_sct ** pl_lst_in,
    int pl_cnt_in,
    poly_sct ** pl_lst_out,
