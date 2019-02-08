@@ -15,35 +15,17 @@ not removed.
 
 #include "nco_vrl.h"
 
+/* global variables for latitude, longitude in RADIANS
+   these may be set in nco_poly.c or
+   should be safe with OPenMP  ? */
 
-/*
-int     	n, m;
-tPolygoni	P, Q;
-*/
+static double LAT_MIN_RAD;
+static double LAT_MAX_RAD;
 
-/*
-int main(int argc, char **argv)
-{
+static double LON_MIN_RAD;
+static double LON_MAX_RAD;
 
 
-  int     	n, m;
-  tPolygond	P, Q;
-
-  int r=0;
-  tPolygond     R;
-  
-   n = ReadPoly( P );
-   m = ReadPoly( Q );
-   OutputPolygons(P, Q, n, m);
-   ConvexIntersect( P, Q, R, n, m, &r);
-
-   if(r >1) 
-     PrintPoly(r,R); 
-   
-   ClosePostscript();
-}
-
-*/
 
 /*---------------------------------------------------------------------
 ---------------------------------------------------------------------*/
@@ -83,7 +65,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
       /* If A & B intersect, update inflag. */
       code = SegSegInt( P[a1], P[a], Q[b1], Q[b], p, q );
 
-      if(lcl_dbg)
+      if(DEBUG_VRL)
         (void)fprintf(stdout, "%s: cross=%d, aHB=%d, bHA=%d code = %c\n", nco_prg_nm_get(),cross, aHB, bHA, code );
 
       if ( code == '1' || code == 'v' ) {
@@ -99,7 +81,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
 	 
 	 AddPoint(R,r, p);
 
-         if(lcl_dbg)
+         if(DEBUG_VRL)
 	      (void)fprintf(stdout, "%s: InOut sets inflag=%d\n", nco_prg_nm_get(),  inflag);
       }
 
@@ -117,7 +99,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
       if ( (cross == 0) && ( aHB < 0) && ( bHA < 0 ) )
 	{
 
-          if(lcl_dbg)
+          if(DEBUG_VRL)
               (void)fprintf(stdout, "%s: P and Q are disjoint\n", nco_prg_nm_get());
 	  
 	  return EXIT_FAILURE;
@@ -178,7 +160,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
       a%=n;
       b%=m;
 
-     if(lcl_dbg)
+     if(DEBUG_VRL)
        (void)fprintf(stdout, "%s: Before Advances:a=%d, b=%d; aa=%d, ba=%d; inflag=%d\n", nco_prg_nm_get(),   a, b, aa, ba, inflag);
 
 
@@ -187,7 +169,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
 
    if ( !FirstPoint ) 
    {
-      if(lcl_dbg)
+      if(DEBUG_VRL)
          (void)fprintf(stdout, "%s: no points output\n", nco_prg_nm_get());
       
       return EXIT_FAILURE;
@@ -198,7 +180,7 @@ int ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r
    if ( inflag == Unknown)
    {
 
-      if(lcl_dbg)
+      if(DEBUG_VRL)
          (void)fprintf(stdout, "The boundaries of P and Q do not cross.\n", nco_prg_nm_get());
       
       return EXIT_FAILURE;
@@ -476,7 +458,9 @@ Polygon I/O functions
 void PrintPoly(tPolygond R, int r)
 {
   int idx;
-  
+
+
+
    printf("Polygon R:\n");
    
    for( idx = 0; idx < r; idx++ )
@@ -490,6 +474,7 @@ void PrintPoly(tPolygond R, int r)
 void sPrintPoly(tPolygonds sR, int r, int istyle)
 {
   int idx;
+
 
   printf("\nSpherical Polygon\n");
 
@@ -535,6 +520,9 @@ int sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, in
    tPointds q;
 
    tInFlag inflag= Unknown;
+
+   if(DEBUG_VRL)
+     fprintf(stdout, "%s: just entered sConvexIntersect()\n", nco_prg_nm_get() );
 
 
    do{
@@ -611,8 +599,8 @@ int sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, in
 
 
          if (code == '1' || code == 'e') {
-
-            prnPoint("(): intersect", p,3,True  );
+            if(DEBUG_VRL)
+               prnPoint("(): intersect", p,3,True  );
 
             sAddPoint(R, r, p);
 
@@ -632,12 +620,13 @@ int sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, in
             inflag = ( ipqLHS ==1 ? Pin : iqpLHS ==1 ? Qin : inflag );
 
 
-
-            printf("%%InOut sets inflag=%s\n", prnInFlag(inflag));
+            if(DEBUG_VRL)
+              printf("%%InOut sets inflag=%s\n", prnInFlag(inflag));
 
          }
 
-         printf("numIntersect=%d code=%c (ipqLHS=%d, ip1qLHS=%d), (iqpLHS=%d, iq1pLHS=%d), (qpFace=%d pqFace=%d)\n",numIntersect, code, ipqLHS, ip1qLHS,  iqpLHS,iq1pLHS, qpFace,pqFace);
+         if(DEBUG_VRL)
+            printf("numIntersect=%d code=%c (ipqLHS=%d, ip1qLHS=%d), (iqpLHS=%d, iq1pLHS=%d), (qpFace=%d pqFace=%d)\n",numIntersect, code, ipqLHS, ip1qLHS,  iqpLHS,iq1pLHS, qpFace,pqFace);
 
 
 
@@ -690,7 +679,8 @@ int sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, in
       a%=n;
       b%=m;
 
-      printf("\ndebug isGeared=%d a=%d aa=%d b=%d bb=%d \n",isGeared, a, aa, b, bb);
+      if(DEBUG_VRL)
+         fprintf(stdout, "\ndebug isGeared=%d a=%d aa=%d b=%d bb=%d \n",isGeared, a, aa, b, bb);
 
       /* quick exit if current point is same a First point  - nb an exact match ?*/
       if( *r >3 &&  R[0][3]==R[*r-1][3] && R[0][4]==R[*r-1][4] )
@@ -724,13 +714,13 @@ char  sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tP
 
 
    if(flg_sx) {
-      sxCross(a, b, Pcross);
-      sxCross(c, d, Qcross);
+      nx1=sxCross(a, b, Pcross);
+      nx2=sxCross(c, d, Qcross);
 
       sphAddcrt(Pcross);
       sphAddcrt(Qcross);
 
-      sxCross(Pcross, Qcross, Icross);
+      nx3=sCross(Pcross, Qcross, Icross);
       sphAddcrt(Icross);
    }
    else
@@ -744,7 +734,7 @@ char  sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tP
 
    darc=atan(nx3);
 
-   if(flg_dbg) {
+   if(DEBUG_VRL) {
       prnPoint("sSegSegInt(): intersection", Icross, 3, True);
       printf("sSegSegInt(): ||Pcross||=%.20g ||Qcross||=%.20g ||Icross||=%.20g arc=%.20g\n", nx1, nx2, nx3, darc);
    }
@@ -863,7 +853,7 @@ double  sCross(tPointds a, tPointds b, tPointds c)
       c[2] /= n1;
    }
 
-   if(flg_dbg)
+   if(DEBUG_VRL)
       printf("sCross(): n1=%f (%f, %f %f)\n", n1, c[0],c[1], c[2]);
 
    return n1;
@@ -880,9 +870,9 @@ double sRadius(tPointds a){
 
 
 /* new method for calculating cross product */
-void sxCross( tPointds a, tPointds b, tPointds c  )
+double sxCross( tPointds a, tPointds b, tPointds c  )
 {
-   int flg_dbg=1;
+   int flg_dbg=0;
 
    double n1;
    double lon1;
@@ -920,26 +910,17 @@ void sxCross( tPointds a, tPointds b, tPointds c  )
       c[2] /= n1;
    }
 
-   if(flg_dbg)
+   if(DEBUG_VRL)
       printf("sxCross(): n1=%f (%f, %f %f)\n", n1, c[0],c[1], c[2]);
 
-
+   return n1;
 
 }
 
 
 void  sAdi(tPointds a, tPointds b )
 {
-   /*
-   a[0]=b[0];
-   a[1]=b[1];
-   a[2]=b[2];
-   a[3]=b[3];
-   a[4]=b[4];
-   */
-
    (void)memcpy(a,b, sizeof(tPointds));
-
 }
 
 
@@ -999,7 +980,7 @@ void sAddPoint( tPolygonds R, int *r, tPointds P)
 
    delta = ( *r==0 ? 0.0 :   2.0 *asin(    sqrt( pow( R[*r-1][0] - P[0],2 ) + pow( R[*r-1][1] - P[1],2 ) + pow( R[*r-1][2] - P[2],2 )  ) /2.0) );
 
-   if(flg_dbg)
+   if(DEBUG_VRL)
       prnPoint("aAddPoint():", P,3,True );
 
 
@@ -1021,7 +1002,7 @@ nco_bool iBetween(double a, double b, double x  )
    nco_bool sdiff=False;
    int flg_dbg=0;
 
-   if(flg_dbg)
+   if(DEBUG_VRL)
       printf("iBetween(): a=%.20f, b=%.20f, x=%.20f\n", a, b, x);
 
    if(fabs(b-a) < DSIGMA  )
@@ -1081,7 +1062,7 @@ void getLatCorrect(double lon1, double lat1, double lon2, double lat2, double *d
   if(bDeg)
   {
     lat1 *= M_PI / 180.0;
-    lat1 *= M_PI / 180.0;
+    lat2 *= M_PI / 180.0;
     lon1 *= M_PI / 180.0;
     lon2 *= M_PI / 180.0;
   }
@@ -1183,7 +1164,7 @@ nco_bool sLatLonBetween(tPointds a, tPointds b, tPointds x)
 {
 
    /* working in radians here */
-   nco_bool bDeg=0;
+   nco_bool bDeg=False;
    int flg_dbg=1;
 
    double lat_min;
@@ -1197,7 +1178,7 @@ nco_bool sLatLonBetween(tPointds a, tPointds b, tPointds x)
    getLatCorrect(a[3],a[4],b[3],b[4], &lat_min,&lat_max, bDeg);
 
 
-   if(flg_dbg)
+   if(DEBUG_VRL)
       printf("sBetween(): lat_min=%f lat_max=%f lat=%f\n", lat_min, lat_max, x[4]);
 
    if( x[4]>=lat_min && x[4]<=lat_max )
@@ -1274,7 +1255,7 @@ char sParallelDouble( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p
       code= 'e';
    }
 
-   if(flg_dbg)
+   if(DEBUG_VRL)
       printf("sParallelDouble(): code=%c type=%s\n", code, ptype);
 
    return code;
@@ -1310,6 +1291,12 @@ void prnPoint(const char *sMsg, tPointds p, int style, nco_bool bRet )
          printf( "(dx=%.20f, dy=%.20f, dz=%.20f), (lon=%.20f,lat=%.20f)",p[0], p[1], p[2], p[3] *180.0/M_PI,  p[4]*180/M_PI);
        break;
 
+      case 5:
+         printf( "(dx=%f, dy=%f, dz=%f), (lon=%f,lat=%f)",p[0], p[1], p[2], p[3] *180.0/M_PI,  p[4]*180/M_PI);
+       break;
+
+
+
    }
 
    if(bRet)
@@ -1327,6 +1314,10 @@ int idx;
 int idx_pre;
 int idx_nex;
 
+
+double n1;
+double n2;
+
 double dp;
 double theta;
 double rad1=1.0;
@@ -1340,8 +1331,8 @@ for(idx=0; idx<nbr_vrt;idx++)
   idx_pre=(idx + nbr_vrt -1)% nbr_vrt;
   idx_nex=(idx + nbr_vrt +1)% nbr_vrt;
 
-  sCross(sP[idx], sP[idx_pre],aCross);
-  sCross(sP[idx], sP[idx_nex], bCross);
+  n1=sxCross(sP[idx], sP[idx_pre],aCross);
+  n2=sxCross(sP[idx], sP[idx_nex], bCross);
 
   //rad1 = sRadius(aCross);
   //rad  = sRadius(bCross);
@@ -1351,8 +1342,8 @@ for(idx=0; idx<nbr_vrt;idx++)
   // dp=sDot(sP[idx1], sP[idx]) / rad1 /rad;
   theta=acos(dp);
 
-  if(flg_dbg)
-    printf("sConvex():, %d angle=%f\n", idx, theta*180.0/M_PI);
+  if(DEBUG_VRL)
+    printf("sConvex():, %d angle=%f n1=%.15g n2=%.15g\n", idx, theta*180.0/M_PI, n1, n2);
 
   if(theta > 2.0*M_PI   )
      return False;
@@ -1365,10 +1356,67 @@ return True;
 }
 
 
+/* works by counting the number of intersections of the
+   line (pControl, pVertex) and each edge in sP
+   pControl is chosen so that it is OUTSIDE sP
+ */
+nco_bool sPointInPolygon( tPolygonds sP, int n, tPointds pControl, tPointds pVertex)
+{
+
+  char code;
+  int idx;
+  int idx1=0;
+  int numIntersect=0;
+
+  tPointds p;
+  tPointds q;
+
+
+  /* count number of intersections */
+  for(idx=0; idx< n ; idx++)
+  {
+    idx1=(idx+n -1) % n ;
+
+    code=sSegSegInt( sP[idx1], sP[idx], pControl, pVertex, p, q );
+
+    if(code=='1' || code=='v' || code == 'e')
+      numIntersect++;
+
+
+  }
+
+  /* for any polygon (convex or concave)
+    an odd  number of crossings means that the point is inside
+    while an even number means that it is outside */
+
+  return (numIntersect % 2  );
 
 
 
 
+
+}
+
+void sMakeControlPoint(tPolygonds P, int n, tPointds pControl)
+{
+
+
+
+}
+
+/* set static globals */
+void setStaticGlobals(double lon_min_rad, double lon_max_rad, double lat_min_rad, double lat_max_rad   )
+{
+
+  LON_MIN_RAD=lon_min_rad;
+  LON_MAX_RAD=lon_max_rad;
+
+  LAT_MIN_RAD=lat_min_rad;
+  LAT_MAX_RAD=lat_max_rad;
+
+  return;
+
+}
 
 
 

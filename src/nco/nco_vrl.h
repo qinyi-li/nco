@@ -98,7 +98,7 @@ double  sDot( tPointds a, tPointds b );
 double  sCross(tPointds a, tPointds b, tPointds c);
 double sRadius(tPointds a);
 
-void    sxCross( tPointds a, tPointds b, tPointds c );
+double  sxCross( tPointds a, tPointds b, tPointds c );
 void    sAdi(tPointds a, tPointds b );
 void    sph2crt(tPointds a,  double *lon, double *lat, nco_bool bDeg);
 void    crt2sph(tPointd a, tPointds b);
@@ -118,6 +118,10 @@ void prnPoint(const char *sMsg, tPointds p, int style, nco_bool bRet );
 
 nco_bool sConvex(tPolygonds sP, int np);
 void sPrintPoly(tPolygonds sR, int r, int istyle);
+
+nco_bool sPointInPolygon( tPolygonds sP, int n, tPointds pControl, tPointds pVertex);
+
+void setStaticGlobals(double lon_min_rad, double lon_max_rad, double lat_min_rad, double lat_max_rad   );
 
 /*-------------------------------------------------------------------*/
 
