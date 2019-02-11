@@ -60,19 +60,24 @@ Function prototypes.
 ---------------------------------------------------------------------*/
 
 int    ConvexIntersect( tPolygond P, tPolygond Q, tPolygond R, int n, int m, int *r );
-char    SegSegInt( tPointd a, tPointd b, tPointd c, tPointd d, tPointd p, tPointd q );
-char    ParallelInt( tPointd a, tPointd b, tPointd c, tPointd d, tPointd p, tPointd q );
-int	AreaSign( tPointd a, tPointd b, tPointd c );
-nco_bool  Between( tPointd a, tPointd b, tPointd c );
+int    crtConvexIntersect( poly_sct *P, poly_sct *Q, poly_sct *R, int *r );
 
-double  Dot( tPointd a, tPointd b );
-void    SubVec( tPointd a, tPointd b, tPointd c );
-void    Adi( tPointd p, tPointd a );
-void    AddPoint( tPolygond R, int *r, tPointd p); 
-nco_bool  Collinear( tPointd a, tPointd b, tPointd c );
+char    nco_crt_seg_int(double *a, double *b, double *c, double *d, double *p, double *q);
+char    nco_crt_parallel_int(double *a, double *b, double *c, double *d, double *p, double *q);
+int	nco_crt_cross_sgn(double *a, double *b, double *c);
+nco_bool  nco_crt_between(double *a, double *b, double *c);
 
-nco_bool  LeftOn( tPointd a, tPointd b, tPointd c );
-nco_bool  Left( tPointd a, tPointd b, tPointd c );
+double  nco_crt_dot(double *a, double *b);
+void    nco_crt_subvec(tPointd a, tPointd b, tPointd c);
+void    nco_crt_adi(double *p, double *a);
+
+// void    AddPoint( tPolygond R, int *r, tPointd p);
+void nco_crt_add_pnt(double **R, int *r, double *P);
+
+nco_bool  nco_crt_linear(double *a, double *b, double *c);
+
+nco_bool  nco_crt_left_on(double *a, double *b, double *c);
+nco_bool  nco_crt_left(double *a, double *b, double *c);
 tInFlag InOut( tPointd p, tInFlag inflag, int aHB, int bHA );
 
 
