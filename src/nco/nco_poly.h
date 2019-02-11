@@ -14,7 +14,7 @@
 #include "nco_sng_utl.h" /* String utilities */
 
 #include "kd.h"
-#include "nco_vrl.h"
+//#include "nco_vrl.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,11 +29,20 @@ extern "C" {
 
 #define DEBUG_VRL (0)
 
-  typedef enum {
+/* number of double for each type */
+
+#define NBR_SPH (5)
+#define NBR_CRT (2)
+
+
+
+
+typedef enum {
      poly_none=0,
      poly_sph=1,
      poly_crt=2
   } poly_typ_enm;
+
 
   
   typedef struct{
@@ -44,6 +53,7 @@ extern "C" {
     double *dp_y;    /* y vertices */
     double *dp_xyz;  /* maybe useful for 3D stuff */ 
     double area;  
+    double **shp;    /* array of points size [crn_nbr][2] or [crn_nbr][50 */
 
     double dp_x_minmax[2];
     double dp_y_minmax[2];
@@ -75,7 +85,12 @@ extern "C" {
   nco_poly_init_crn
   (poly_typ_enm pl_typ,
   int crn_nbr_in);
-  
+
+  void
+  nco_poly_init_crn_re  /* re malloc crn_nbr to a new size */
+  (poly_sct *pl,
+   int new_crn_nbr);
+
   poly_sct*
   nco_poly_dpl
   (poly_sct *pl);
@@ -90,8 +105,7 @@ extern "C" {
   
   void
   nco_poly_prn
-  (int style,
-   poly_sct *pl);
+  (poly_sct *pl, int style);
 
   
   poly_sct*
@@ -129,7 +143,24 @@ extern "C" {
 
   nco_bool  /* 0 [flg] True if polygon is convex */
   nco_poly_is_convex(
-  poly_sct *pl);		     
+  poly_sct *pl);
+
+  void
+  nco_poly_shp_init(  /* allocate shp to sph[crn_nbr][2] or shp[crn_nbr][5] */
+  poly_sct *pl);
+
+  void
+  nco_poly_shp_free(  /* allocate shp to sph[crn_nbr][2] or shp[crn_nbr][5] */
+  poly_sct *pl);
+
+  void
+  nco_poly_shp_pop(  /* fill out sph with values from dp_x, and dp_y */
+  poly_sct *pl);
+
+  void
+  nco_poly_dp_pop_shp(  /* fill out dp_x, dp_y with values from shp */
+  poly_sct *pl
+  );
 
 
 /************************ functions that manipulate lists of polygons ****************************************************/
@@ -140,7 +171,7 @@ extern "C" {
    int arr_nbr);
   
    poly_sct**             /* [O] [nbr] Array of poly_sct */   
-   nco_poly_mk_lst(
+   nco_poly_lst_mk(
    double *area, /* I [sr] Area of source grid */
    int *msk, /* I [flg] Mask on source grid */
    double *lat_ctr, /* I [dgr] Latitude  centers of source grid */
@@ -160,20 +191,20 @@ extern "C" {
 
 
    poly_sct **
-   nco_poly_mk_vrl_lst(   /* create overlap mesh  for crt */
-   poly_sct ** pl_lst_in,
+   nco_poly_lst_mk_vrl(   /* create overlap mesh  for crt */
+   poly_sct **pl_lst_in,
    int pl_cnt_in,
-   poly_sct ** pl_lst_out,
+   poly_sct **pl_lst_out,
    int pl_cnt_out,
-   int *pl_cnt_vrl);
+   int *pl_cnt_vrl_ret);
 
    poly_sct **
-   nco_poly_mk_vrl_lst_sph(   /* create overlap mesh  for crt */
-   poly_sct ** pl_lst_in,
+   nco_poly_lst_mk_vrl_sph(   /* create overlap mesh  for sph */
+   poly_sct **pl_lst_in,
    int pl_cnt_in,
-   poly_sct ** pl_lst_out,
+   poly_sct **pl_lst_out,
    int pl_cnt_out,
-   int *pl_cnt_vrl);
+   int *pl_cnt_vrl_ret);
 
 
    		   
