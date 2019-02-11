@@ -696,6 +696,224 @@ int sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, in
 
 }
 
+/* spherical functions */
+int snewConvexIntersect(poly_sct *P, poly_sct *Q, poly_sct *R, int *r)
+{
+
+   nco_bool flg_dbg=True;
+
+   nco_bool qpFace = False;
+   nco_bool pqFace = False;
+   nco_bool isGeared = False;
+
+   int numIntersect=0;
+
+   int n;
+   int m;
+
+   int a = 0, a1 = 0, aa=0;
+   int b = 0, b1 = 0, bb=0;
+
+
+   int ipqLHS = 0;
+   int ip1qLHS = 0 ;
+   int iqpLHS = 0;
+   int iq1pLHS = 0 ;
+
+   double nx1;
+   double nx2;
+   double nx3;
+
+
+   char code='0';
+
+   tPointds p;
+   tPointds q;
+
+   tInFlag inflag= Unknown;
+
+   n=P->crn_nbr;
+   m=Q->crn_nbr;
+
+   if(DEBUG_VRL)
+      fprintf(stdout, "%s: just entered sConvexIntersect()\n", nco_prg_nm_get() );
+
+
+   do{
+
+
+      a1 = (a + n - 1) % n;
+      b1 = (b + m - 1) % m;
+
+
+      tPointds Pcross;
+      tPointds Qcross;
+      tPointds Xcross;
+
+      nx1=sCross(P->shp[a1], P->shp[a], Pcross);
+      nx2=sCross(Q->shp[b1], Q->shp[b], Qcross);
+
+      nx3=sCross(Pcross,Qcross,Xcross);
+
+
+      ipqLHS = sLHS(P->shp[a], Qcross);
+      ip1qLHS = sLHS(P->shp[a1], Qcross);
+
+
+      /* imply rules facing if 0 */
+
+      if(ipqLHS==0 && ip1qLHS!=0)
+         ipqLHS=ip1qLHS*-1;
+      else if( ipqLHS != 0 && ip1qLHS == 0 )
+         ip1qLHS=ipqLHS*-1;
+
+
+      iqpLHS = sLHS(Q->shp[b], Pcross);
+      iq1pLHS = sLHS(Q->shp[b1], Pcross);
+
+      /* imply rules facing if 0 */
+
+      if(iqpLHS == 0 && iq1pLHS != 0)
+         iqpLHS=iq1pLHS*-1;
+      else if(iqpLHS != 0 && iq1pLHS == 0)
+         iq1pLHS=iqpLHS*-1;
+
+
+      /* now calculate face rules */
+      qpFace = sFace(ip1qLHS, ipqLHS, iqpLHS);
+      pqFace = sFace(iq1pLHS, iqpLHS, ipqLHS);
+
+      /* Xcross product near zero !! so make it zero*/
+      if(nx3< 1.0e-10)
+      {
+         ip1qLHS=0;
+         ipqLHS=0;
+         iq1pLHS=0;
+         iqpLHS=0;
+         qpFace=0;
+         pqFace=0;
+      }
+
+
+
+      if( isGeared == False)
+      {
+         if(  (ipqLHS == 1 && iqpLHS == 1) ||  ( qpFace && pqFace )     )
+         {
+            aa++;a++;
+         }
+         else
+         {
+            isGeared = True;
+         }
+      }
+
+      if(isGeared) {
+         code = sSegSegInt(P->shp[a1], P->shp[a], Q->shp[b1], Q->shp[b], p, q);
+
+
+         if (code == '1' || code == 'e') {
+            if(DEBUG_VRL)
+               prnPoint("(): intersect", p,3,True  );
+
+            sphAddPoint(R->shp, r, p);
+
+            /*
+            if(code=='e')
+              sAddPoint(R, r, q);
+            */
+
+            if (numIntersect++ == 0) {
+               /* reset counters */
+               aa = 0;
+               bb = 0;
+            }
+
+
+
+            inflag = ( ipqLHS ==1 ? Pin : iqpLHS ==1 ? Qin : inflag );
+
+
+            if(DEBUG_VRL)
+               printf("%%InOut sets inflag=%s\n", prnInFlag(inflag));
+
+         }
+
+         if(DEBUG_VRL)
+            printf("numIntersect=%d code=%c (ipqLHS=%d, ip1qLHS=%d), (iqpLHS=%d, iq1pLHS=%d), (qpFace=%d pqFace=%d)\n",numIntersect, code, ipqLHS, ip1qLHS,  iqpLHS,iq1pLHS, qpFace,pqFace);
+
+
+
+         if (qpFace && pqFace)  {
+
+            /* Advance either P or Q which has previously arrived ? */
+            if(inflag == Pin) sphAddPoint(R->shp,r, P->shp[a]);
+
+            aa++;a++;
+
+
+         } else if (qpFace) {
+            if(inflag == Qin) sphAddPoint(R->shp,r, Q->shp[b]);
+
+            bb++;b++;
+
+
+            /* advance q */
+         } else if (pqFace) {
+            /* advance p */
+            if(inflag == Pin) sphAddPoint(R->shp,r,P->shp[a]);
+
+            aa++;a++;
+
+         } else if (iqpLHS == -1) {
+            /* advance q */
+            //if(inflag== Qin) sAddPoint(R,r,Q->shp[b]);
+            bb++;b++;
+
+            /* cross product zero  */
+         } else if( ipqLHS==0 && ip1qLHS==0 && iq1pLHS ==0 && iqpLHS ==0   ){
+            if(inflag==Pin)
+            {bb++;b++;}
+            else
+            {aa++;a++;}
+
+         }
+
+
+
+         else {
+            /* catch all */
+            if(inflag==Pin) sphAddPoint(R->shp,r,P->shp[a]);
+            aa++;a++;
+
+         }
+
+      }
+
+      a%=n;
+      b%=m;
+
+      if(DEBUG_VRL)
+         fprintf(stdout, "\ndebug isGeared=%d a=%d aa=%d b=%d bb=%d \n",isGeared, a, aa, b, bb);
+
+      /* quick exit if current point is same a First point  - nb an exact match ?*/
+      if( *r >3 &&  R->shp[0][3]==R->shp[*r-1][3] && R->shp[0][4]==R->shp[*r-1][4] )
+      {
+         --*r;
+         break;
+      }
+
+
+   } while ( ((aa < n) || (bb < m)) && (aa < 2*n) && (bb < 2*m) );
+
+   return EXIT_SUCCESS;
+
+}
+
+
+
+
+
 char  sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q )
 {
    int flg_dbg=1;
@@ -995,6 +1213,36 @@ void sAddPoint( tPolygonds R, int *r, tPointds P)
 
 
 }
+
+
+void
+sphAddPoint(double **sph, int *r, double *P   )
+{
+   int flg_dbg=1;
+
+   double delta;
+
+
+   delta = ( *r==0 ? 0.0 :   2.0 *asin(    sqrt( pow( sph[*r-1][0] - P[0],2 ) + pow( sph[*r-1][1] - P[1],2 ) + pow( sph[*r-1][2] - P[2],2 )  ) /2.0) );
+
+   if(DEBUG_VRL)
+      prnPoint("%sphAddPoint():", P,3,True );
+
+
+
+   /* only add  point if its distinct from previous point */
+   if ( *r==0 ||  delta > ARC_MIN_LENGTH_RAD )
+   {
+
+      memcpy(sph[*r], P,  sizeof(double)*NBR_SPH );
+      (*r)++;
+   }
+
+
+}
+
+
+
 
 nco_bool iBetween(double a, double b, double x  )
 {

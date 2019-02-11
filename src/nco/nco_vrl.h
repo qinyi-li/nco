@@ -8,12 +8,12 @@
 
 /* Personal headers */
 #include "nco.h" /* netCDF Operator (NCO) definitions */
-#include "nco_mmr.h" /* Memory management */
-#include "nco_omp.h" /* OpenMP utilities */
-#include "nco_rgr.h" /* Regridding */
-#include "nco_sld.h" /* Swath-Like Data */
+#include "nco_mmr.h"     /* Memory management */
+#include "nco_omp.h"     /* OpenMP utilities */
+#include "nco_rgr.h"     /* Regridding */
+#include "nco_sld.h"     /* Swath-Like Data */
 #include "nco_sng_utl.h" /* String utilities */
-
+#include "nco_poly.h"    /* poly sct stuff */
 
 
 /* Dimension of points */
@@ -35,6 +35,7 @@
 /* we need this to convert 3D back to 2D */
 #define IS_LON_360 (1)
 
+#define DEBUG_VRL (1)
 
 
 #ifdef __cplusplus
@@ -89,6 +90,10 @@ int     Advance( int a, int *aa, int n, int inside, tPointi v );
 /* spherical methods */
 
 int  sConvexIntersect( tPolygonds P, tPolygonds Q, tPolygonds R, int n, int m, int *r );
+
+int  snewConvexIntersect( poly_sct *sP, poly_sct * sQ, poly_sct *sR, int *r);
+
+
 char    sSegSegInt( tPointds a, tPointds b, tPointds c, tPointds d, tPointds p, tPointds q );
 
 int sLHS(tPointds Pi, tPointds Qi );
@@ -103,7 +108,9 @@ void    sAdi(tPointds a, tPointds b );
 void    sph2crt(tPointds a,  double *lon, double *lat, nco_bool bDeg);
 void    crt2sph(tPointd a, tPointds b);
 void    sphAddcrt(tPointds ds);
-void    sAddPoint( tPolygonds R, int *r, tPointds P);
+void    sAddPoint( tPolygonds R , int *r, tPointds P);
+
+void sphAddPoint(double **sph, int *r, double *P );
 
 double latCorrect( double lat1, double lon1, double lon2  );
 
