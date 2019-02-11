@@ -1,9 +1,10 @@
+#ifndef NCO_POLY_H
+#define NCO_POLY_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
-#ifndef NCO_POLY_H
-#define NCO_POLY_H 
 
 /* Personal headers */
 #include "nco.h" /* netCDF Operator (NCO) definitions */
@@ -14,7 +15,7 @@
 #include "nco_sng_utl.h" /* String utilities */
 
 #include "kd.h"
-//#include "nco_vrl.h"
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,9 +33,6 @@ extern "C" {
 /* number of double for each type */
 
 #define NBR_SPH (5)
-#define NBR_CRT (2)
-
-
 
 
 typedef enum {
@@ -207,8 +205,9 @@ typedef enum {
    int *pl_cnt_vrl_ret);
 
 
-   		   
-      
+
+#include "nco_crt.h"
+#include "nco_sph.h"
   
   
 #ifdef __cplusplus

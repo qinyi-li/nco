@@ -1,6 +1,7 @@
 #include "nco_poly.h"
 
-#include "nco_vrl.c"
+#include "nco_crt.c"
+#include "nco_sph.c"
 
 int
 nco_poly_typ_sz(poly_typ_enm pl_typ)
@@ -619,77 +620,33 @@ poly_sct *pl_out){
  int nbr_r=0;
 
 
-  char fnc_nm[]="nco_poly_do_vrl()";
+ char fnc_nm[]="nco_poly_do_vrl()";
   
  poly_sct *pl_vrl;
-  
+
+ nco_poly_shp_pop(pl_in);
+ nco_poly_shp_pop(pl_out);
+
+
+ pl_vrl=nco_poly_init_crn(pl_in->pl_typ,  ( nbr_p>=nbr_q ? 2*nbr_p: 2*nbr_q ) +1       );
+ nco_poly_shp_init(pl_vrl);
+
+
 
  if(pl_in->pl_typ == poly_crt ) {
-
-
-   tPolygond P;
-   tPolygond Q;
-   tPolygond R;
-
-   nco_poly_2_crt(pl_in, P, &nbr_p);
-   nco_poly_2_crt(pl_out, Q, &nbr_q);
-
-
-
-   /* for now just copy pl_in so  we can test other functions */
-   // pl_vrl=nco_poly_dpl( pl_in);
-
-
-   iret = ConvexIntersect(P, Q, R, nbr_p, nbr_q, &nbr_r);
-
-   if (nbr_r < 3)
-     return (poly_sct *) NULL_CEWI;
-
-
-   pl_vrl = nco_poly_old_2_new(R, nbr_r);
-
+   iret = crtConvexIntersect(pl_in, pl_out, pl_vrl, &nbr_r);
  }
- else if( pl_in->pl_typ== poly_sph)
+   else if( pl_in->pl_typ== poly_sph)
  {
-   tPolygonds sP;
-   tPolygonds sQ;
-   tPolygonds sR;
-
-   if(nco_dbg_lvl_get() >10 )
-     fprintf(stdout,"%s: entered sph code branch nbr_p=%d nbr_q=%d\n",__FUNCTION__, nbr_p, nbr_q );
-
-   nco_poly_2_sph(pl_in, sP, &nbr_p);
-   nco_poly_2_sph(pl_out, sQ, &nbr_q);
-
-   if(nbr_p <3 || nbr_q < 3)
-     return (poly_sct *) NULL_CEWI;
-
-
-   iret = sConvexIntersect(sP, sQ, sR, nbr_p, nbr_q, &nbr_r);
-
-   if (nbr_r < 3)
-     return (poly_sct *) NULL_CEWI;
-
-   pl_vrl = nco_poly_sph_2_new(sR, nbr_r);
-
+   iret = sphConvexIntersect(pl_in, pl_out, pl_vrl,&nbr_r);
 
  }
 
+   nco_poly_init_crn_re(pl_vrl, nbr_r);
+   nco_poly_dp_pop_shp(pl_vrl);
 
-
- /*
- if(pl_vrl &&  nco_poly_is_convex(pl_vrl) == False )
- {    
-    
-  fprintf(stdout,"%s:%s vrl polygon not convex  vrl, in, out\n", nco_prg_nm_get(), fnc_nm ); 
-  nco_poly_prn(2, pl_vrl);
-  nco_poly_prn(2, pl_in);
-  nco_poly_prn(2, pl_out);
-
-
-
- }  
- */ 
+  if (nbr_r < 3)
+    pl_vrl = nco_poly_free(pl_vrl);
 
 
  return pl_vrl;
