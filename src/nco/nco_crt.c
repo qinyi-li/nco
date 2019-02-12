@@ -29,7 +29,7 @@ static double LON_MAX;
 
 /*---------------------------------------------------------------------
 ---------------------------------------------------------------------*/
-int  crtConvexIntersect( poly_sct *P, poly_sct *Q, poly_sct *R, int *r )
+int  nco_crt_intersect(poly_sct *P, poly_sct *Q, poly_sct *R, int *r)
 {
   int lcl_dbg=0;
   nco_bool FirstPoint=True;    /*s this the first point? (used to initialize).*/
@@ -362,7 +362,6 @@ int nco_crt_cross_sgn(double *a, double *b, double *c)
 }
 
 
-
 /*
    Returns true iff c is strictly to the left of the directed
    line through a to b.
@@ -389,8 +388,6 @@ Assumes it is already known that abc are collinear.
 ---------------------------------------------------------------------*/
 nco_bool nco_crt_between(double *a, double *b, double *c)
 {
-   tPointd      ba, ca;
-
    /* If ab not vertical, check betweenness on x; else on y. */
    if ( a[0] != b[0] )
      return (a[0] <= c[0] && c[0] <= b[0])  || (a[0] >= c[0] && c[0] >= b[0] ) ;
@@ -429,26 +426,8 @@ const char * prnInFlag(tInFlag in)
 }
 
 
-/*---------------------------------------------------------------------
-Polygon I/O functions  
----------------------------------------------------------------------*/
 
 
-void PrintPoly(tPolygond R, int r)
-{
-  int idx;
-
-
-
-   printf("Polygon R:\n");
-   
-   for( idx = 0; idx < r; idx++ )
-      printf("%20.14f %20.14f\n", R[idx][0], R[idx][1]);
-   
-   printf("End Polygon\n");
-
-
-}
 
 
 

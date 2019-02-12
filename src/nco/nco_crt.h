@@ -44,18 +44,13 @@ extern "C" {
 
 
 typedef enum { Pin, Qin, Unknown } tInFlag;
-typedef int     tPointi[NBR_CRT];   /* type integer point */
-typedef double  tPointd[NBR_CRT];   /* type double point */
-
-typedef tPointi tPolygoni[VP_MAX]; /* type integer polygon */
-typedef tPointd tPolygond[VP_MAX]; /* type integer polygon */
 
 
 /*---------------------------------------------------------------------
 Function prototypes.
 ---------------------------------------------------------------------*/
 
-int    crtConvexIntersect( poly_sct *P, poly_sct *Q, poly_sct *R, int *r );
+int    nco_crt_intersect(poly_sct *P, poly_sct *Q, poly_sct *R, int *r);
 
 char    nco_crt_seg_int(double *a, double *b, double *c, double *d, double *p, double *q);
 char    nco_crt_parallel_int(double *a, double *b, double *c, double *d, double *p, double *q);
@@ -73,7 +68,6 @@ nco_bool  nco_crt_linear(double *a, double *b, double *c);
 nco_bool  nco_crt_left_on(double *a, double *b, double *c);
 nco_bool  nco_crt_left(double *a, double *b, double *c);
 
-void    PrintPoly( tPolygond P, int n );
 const char * prnInFlag(tInFlag in);
 
 
