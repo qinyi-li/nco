@@ -325,7 +325,8 @@ void nco_poly_add_minmax
 
     /* do it in degrees for now */
 
-    getLatCorrect( pl->dp_x_minmax[0], pl->dp_y_minmax[1], pl->dp_x_minmax[1], pl->dp_y_minmax[0], &lat_min, &lat_max, bDeg);
+    nco_geo_get_lat_correct(pl->dp_x_minmax[0], pl->dp_y_minmax[1], pl->dp_x_minmax[1], pl->dp_y_minmax[0], &lat_min,
+                            &lat_max, bDeg);
 
     pl->dp_y_minmax[0]=lat_min;
     pl->dp_y_minmax[1]=lat_max;
@@ -456,7 +457,9 @@ nco_poly_prn
 (poly_sct *pl, int style)
 {
   int idx;
+  int nbr_el;
 
+  nbr_el=nco_poly_typ_sz(pl->pl_typ);
 
   switch(style){ 
 
@@ -496,8 +499,14 @@ nco_poly_prn
 
     case 3:
       (void)fprintf(stdout,"%s: crn_nbr=%d shp follows \n", nco_prg_nm_get(), pl->crn_nbr);
-      for(idx=0; idx<pl->crn_nbr; idx++)
-        (void)fprintf(stdout,"x=%f y=%f z=%f lon=%f lat=%f\n",pl->shp[idx][0], pl->shp[idx][1], pl->shp[idx][2], pl->shp[idx][3], pl->shp[idx][4]   );
+
+      if(pl->pl_typ == poly_sph)
+        for(idx=0; idx<pl->crn_nbr; idx++)
+           (void)fprintf(stdout,"x=%f y=%f z=%f lon=%f lat=%f\n",pl->shp[idx][0], pl->shp[idx][1], pl->shp[idx][2], pl->shp[idx][3]*180.0 / M_PI, pl->shp[idx][4]*180.0 /M_PI );
+
+      if(pl->pl_typ == poly_crt)
+        for(idx=0; idx<pl->crn_nbr; idx++)
+          (void)fprintf(stdout,"x=%f y=%f\n",pl->shp[idx][0], pl->shp[idx][1]);
 
 
   }
@@ -509,102 +518,6 @@ nco_poly_prn
      
 }
 
-void nco_poly_2_sph(
-poly_sct *pl,
-tPolygonds sP,
-int *nbr_vert
-)
-{
-  int idx;
-  int sz;
-
-  /* temporary var */
-  tPointd dTmp;
-
-  sz=pl->crn_nbr;
-
-  /* remember input is in degress and sP[idx][3] and sP[idx][4] is in Radians */
-
-  for(idx=0 ; idx<sz; idx++){
-    dTmp[0]=pl->dp_x[idx];
-    dTmp[1]=pl->dp_y[idx];
-    crt2sph(dTmp, sP[idx]);
-  }
-
-
-
-}
-
-
-void
-nco_poly_2_crt(
-poly_sct *pl,
-tPolygond P,
-int *nbr_v)
-{  
-  int idx;
-  int sz;
-
-  sz=pl->crn_nbr;
-  for(idx; idx<sz; idx++)
-  { 
-    P[idx][0]=pl->dp_x[idx];
-    P[idx][1]=pl->dp_y[idx];
-  }
-  
-  *nbr_v=sz;
-  return;   
-}
-
-poly_sct*
-nco_poly_old_2_new(
-tPolygond P,		   
-int nbr_v)
-{
-  int idx;
-  int sz;
-  poly_sct *pl;
-  
-  pl=nco_poly_init_crn( poly_crt,  nbr_v);
-
-  for(idx=0;idx<nbr_v;idx++)
-  {
-
-    pl->dp_x[idx]=P[idx][0];
-    pl->dp_y[idx]=P[idx][1];
-
-  }
-
-  nco_poly_add_minmax(pl);
-
-  return pl;
-  
-}
-
-poly_sct*
-nco_poly_sph_2_new(
-tPolygonds sP,
-int nbr_v)
-{
-  int idx;
-  int sz;
-  poly_sct *pl;
-
-  pl=nco_poly_init_crn( poly_sph,  nbr_v);
-
-  for(idx=0;idx<nbr_v;idx++)
-  {
-
-    pl->dp_x[idx]=sP[idx][3]*180.0 /M_PI;
-    pl->dp_y[idx]=sP[idx][4]*180.0 /M_PI;
-
-  }
-
-  nco_poly_add_minmax(pl);
-
-  return pl;
-
-}
 
 
 poly_sct*
@@ -634,11 +547,11 @@ poly_sct *pl_out){
 
 
  if(pl_in->pl_typ == poly_crt ) {
-   iret = crtConvexIntersect(pl_in, pl_out, pl_vrl, &nbr_r);
+   iret = nco_crt_intersect(pl_in, pl_out, pl_vrl, &nbr_r);
  }
    else if( pl_in->pl_typ== poly_sph)
  {
-   iret = sphConvexIntersect(pl_in, pl_out, pl_vrl,&nbr_r);
+   iret = nco_sph_intersect(pl_in, pl_out, pl_vrl, &nbr_r);
 
  }
 
@@ -1129,7 +1042,6 @@ poly_sct *pl)
 {
 
   int idx;
-  double dp[2];
 
   /* auto initialize - NOT a good idea ? */
   if(pl->shp == NULL_CEWI)
@@ -1145,13 +1057,8 @@ poly_sct *pl)
 
   if( pl->pl_typ == poly_sph )
   {
-    for (idx = 0; idx < pl->crn_nbr; idx++) {
-      dp[0]=pl->dp_x[idx];
-      dp[1]=pl->dp_y[idx];
-
-      crt2sph(dp, pl->shp[idx]);
-
-    }
+    for (idx = 0; idx < pl->crn_nbr; idx++)
+      nco_geo_lonlat_2_sph(pl->dp_x[idx], pl->dp_y[idx] , pl->shp[idx]);
 
   }
 
@@ -1178,7 +1085,7 @@ poly_sct *pl
   if( pl->pl_typ == poly_sph )
   {
     for (idx = 0; idx < pl->crn_nbr; idx++)
-      sph2crt(pl->shp[idx], &pl->dp_x[idx], &pl->dp_y[idx], bDeg );
+      nco_geo_sph_2_lonlat(pl->shp[idx], &pl->dp_x[idx], &pl->dp_y[idx], bDeg);
 
 
   }
