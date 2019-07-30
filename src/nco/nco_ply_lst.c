@@ -594,8 +594,9 @@ int *pl_cnt_vrl_ret){
 
   pl_typ=pl_lst_in[0]->pl_typ;
 
+  nco_omp_for_chk(8, fnc_nm);
 
-
+  lcl_thr_nbr=omp_get_max_threads();
 
   mem_lst=(omp_mem_sct*)nco_malloc(sizeof(omp_mem_sct)*lcl_thr_nbr);
 
@@ -608,13 +609,12 @@ int *pl_cnt_vrl_ret){
 
   }
 
-  nco_omp_for_chk(4, fnc_nm);
+
 
 
 #ifdef _OPENMP
 #pragma omp parallel for private(idx, thr_idx) schedule(nonmonotonic: guided,20) shared(rtree, grd_lon_typ, bDirtyRats, bSort, max_nbr_vrl, pl_cnt_dbg, tot_nan_cnt, tot_wrp_cnt, pl_typ)
 #endif /* !_OPENMP */
-
   for(idx=0 ; idx<pl_cnt_in ;idx++ ) {
 
 
@@ -934,39 +934,40 @@ int *pl_cnt_vrl_ret){
 
 
   /* concatenate memory lists */
-   {
+  {
 
-    size_t tot_pl_cnt=0;
-    poly_sct **tmp_pl_lst=NULL_CEWI;
+    size_t tot_pl_cnt = 0;
+    poly_sct **tmp_pl_lst = NULL_CEWI;
 
     /* find total size of lists */
-    for(idx=0;idx<lcl_thr_nbr;idx++)
-      tot_pl_cnt+=mem_lst[idx].pl_cnt;
+    for (idx = 0; idx < lcl_thr_nbr; idx++)
+      tot_pl_cnt += mem_lst[idx].pl_cnt;
 
 
-    pl_lst_vrl=mem_lst[0].pl_lst;
+    pl_lst_vrl = mem_lst[0].pl_lst;
 
 
     pl_lst_vrl = (poly_sct **) nco_realloc(pl_lst_vrl, sizeof(poly_sct *) * tot_pl_cnt);
 
 
+    tmp_pl_lst = pl_lst_vrl;
+    tmp_pl_lst += mem_lst[0].pl_cnt;
 
+    for (idx = 1; idx < lcl_thr_nbr; idx++) {
+      if (mem_lst[idx].pl_lst) {
+        memcpy(tmp_pl_lst, mem_lst[idx].pl_lst, sizeof(poly_sct *) * mem_lst[idx].pl_cnt);
+        tmp_pl_lst += mem_lst[idx].pl_cnt;
 
-    tmp_pl_lst=pl_lst_vrl;
-    tmp_pl_lst+=mem_lst[0].pl_cnt;
-
-    for(idx=1;idx<lcl_thr_nbr;idx++) {
-      memcpy(tmp_pl_lst, mem_lst[idx].pl_lst,  sizeof(poly_sct*) * mem_lst[idx].pl_cnt  );
-      tmp_pl_lst+=mem_lst[idx].pl_cnt;
-
-      /* free up list */
-      mem_lst[idx].pl_lst=(poly_sct**)nco_free(mem_lst[idx].pl_lst);
+        /* free up list */
+        mem_lst[idx].pl_lst = (poly_sct **) nco_free(mem_lst[idx].pl_lst);
+      }
     }
 
-
     *pl_cnt_vrl_ret=tot_pl_cnt;
-
   }
+
+
+
 
 
    /* free up kd_list's */
@@ -1106,8 +1107,6 @@ int pl_cnt_vrl)
   for(idx=0;idx<pl_cnt_out;idx++)
     if( fabs(  pl_lst_out[idx]->area) > epsilon)
       fprintf(stderr, "src_id=%d area=%.10f\n", pl_lst_out[idx]->src_id, pl_lst_out[idx]->area );
-
-
 
 
 
