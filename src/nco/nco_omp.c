@@ -249,6 +249,8 @@ const char *smsg)
   char fnc_nm[]="nco_omp_chk()";
   int thr_nbr_act = omp_get_max_threads();
 
+
+
   FILE *fp_stderr=stderr;
 
   (void) fprintf(fp_stderr,
@@ -276,11 +278,23 @@ int thr_nbr,
 const char *smsg)
 {
   char fnc_nm[]="nco_omp_for_chk()";
+  char *sNUM=NULL_CEWI;
+
+  char *sng_cnv_rcd=NULL_CEWI;
+  int iNUM;
   int thr_nbr_act = omp_get_max_threads();
   int idx;
   int cnt=10;
 
   FILE *fp_stderr=stderr;
+
+
+  if((sNUM=getenv("OMP_NUM_THREADS")))
+    iNUM=(int)strtol(sNUM, &sng_cnv_rcd,NCO_SNG_CNV_BASE10); /* [sng] Environment variable OMP_NUM_THREADS */
+
+
+
+  (void)omp_set_num_threads(iNUM);
 
   (void)fprintf(fp_stderr,
                  "%s:%s: INFO After using omp_set_num_threads() to adjust for any user requests/NCO optimizations, omp_get_max_threads() reports that a parallel construct here/now would spawn %d thread(s)\n",
@@ -289,7 +303,7 @@ const char *smsg)
 
 
 #ifdef _OPENMP
-#pragma omp parallel for private(idx)
+#pragma omp parallel for default(none) private(idx) shared(fp_stderr, cnt, fnc_nm)
 #endif /* !_OPENMP */
 
     for(idx=0;idx<cnt;idx++)
