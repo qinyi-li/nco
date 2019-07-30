@@ -17,6 +17,10 @@
 #include  <stdio.h>
 #include  <math.h>
 
+#ifdef _OPENMP
+# include <omp.h> /* OpenMP pragmas */
+#endif /* !_OPENMP */
+
 /* Personal headers */
 #include "nco.h" /* netCDF Operator (NCO) definitions */
 #include "nco_mmr.h"     /* Memory management */
@@ -37,7 +41,21 @@ extern "C" {
 /* used in nco_ply_lst_vrl - for realloc to expand */
 #define NCO_VRL_BLOCKSIZE 4000
 
+
+typedef struct {
+  poly_sct **pl_lst;
+  size_t pl_cnt;
+  size_t blk_nbr;
+  KDPriority *kd_list;
+} omp_mem_sct;
+
+
 /************************ functions that manipulate lists of polygons ****************************************************/
+void
+nco_poly_init_omp_mem(
+omp_mem_sct *mem
+);
+
 
 void
 nco_poly_re_org_lst(  /* for each poly_sct*  in list re-order points so that first point is the leftermost point */
