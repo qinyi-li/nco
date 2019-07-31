@@ -577,7 +577,7 @@ int *pl_cnt_vrl_ret){
 
   const char fnc_nm[]="nco_poly_lst_mk_vrl_sph()";
 
-  int lcl_thr_nbr=4;
+  int lcl_thr_nbr;
   omp_mem_sct *mem_lst=NULL_CEWI;
 
 
