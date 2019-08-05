@@ -897,7 +897,7 @@ nco_sph_metric( double *p, double *q)
 {
 
   double dist;
-  nco_bool flg_old=True;
+  nco_bool flg_old=False;
 
   if(flg_old)
   {
@@ -1051,10 +1051,24 @@ nco_sph_seg_int(double *a, double *b, double *c, double *d, double *p, double *q
 
 
 
-  flg_ab= nco_sph_metric_int(a, b, Icross);
+  //flg_ab= nco_sph_metric_int(a, b, Icross);
 
-  flg_cd= nco_sph_metric_int(c, d, Icross);
+  //flg_cd= nco_sph_metric_int(c, d, Icross);
 
+  if(!nco_sph_metric(a,Icross))
+    flg_ab=2;
+  else if(!nco_sph_metric(b,Icross))
+    flg_ab=3;
+  else
+    flg_ab=nco_sph_metric_int(a, b, Icross);
+
+
+  if(!nco_sph_metric(c,Icross))
+    flg_cd=2;
+  else if(!nco_sph_metric(d,Icross))
+    flg_cd=3;
+  else
+    flg_cd= nco_sph_metric_int(c, d, Icross);
 
 
 
@@ -1106,10 +1120,24 @@ nco_sph_seg_int(double *a, double *b, double *c, double *d, double *p, double *q
   nco_sph_add_lonlat(Icross);
 
 
-  flg_ab= nco_sph_metric_int(a, b, Icross);
+  //flg_ab= nco_sph_metric_int(a, b, Icross);
 
-  flg_cd= nco_sph_metric_int(c, d, Icross);
+  //flg_cd= nco_sph_metric_int(c, d, Icross);
 
+  if(!nco_sph_metric(a,Icross))
+    flg_ab=2;
+  else if(!nco_sph_metric(b,Icross))
+    flg_ab=3;
+  else
+    flg_ab=nco_sph_metric_int(a, b, Icross);
+
+
+  if(!nco_sph_metric(c,Icross))
+    flg_cd=2;
+  else if(!nco_sph_metric(d,Icross))
+    flg_cd=3;
+  else
+    flg_cd= nco_sph_metric_int(c, d, Icross);
 
 
 
@@ -1122,7 +1150,8 @@ nco_sph_seg_int(double *a, double *b, double *c, double *d, double *p, double *q
 
   }
 
-
+  flg_ab=0;
+  flg_cd=0;
 
 
     if(flg_ab && flg_cd)
