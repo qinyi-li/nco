@@ -888,11 +888,33 @@ nco_sph_seg_int_1(double *a, double *b, double *c, double *d, double *p, double 
 
 }
 
-int
-nco_sph_metric( double *c, double *d, double *Icross )
+
+/* function used to compare  points */
+/*  returns True if points distinct */
+nco_bool
+nco_sph_metric( double *p, double *q)
 {
 
-  char fnc_nm[]="nco_sph_metric()";
+  double dist;
+
+  /* this is pythagoean  distance */
+  dist=sqrt(  (p[0]-q[0]) * (p[0]-q[0]) + (p[1]-q[1])*(p[1]-q[1] + (p[2]-q[2])*(p[2]-q[2]) ) );
+
+  if( dist > DIST_TOLERANCE)
+    return True;
+
+  return False;
+
+}
+
+
+
+
+int
+nco_sph_metric_int(double *c, double *d, double *Icross)
+{
+
+  char fnc_nm[]="nco_sph_metric_int()";
   nco_bool DEBUG_LCL=False;
   nco_bool bIGood=False;
 
@@ -1014,9 +1036,9 @@ nco_sph_seg_int(double *a, double *b, double *c, double *d, double *p, double *q
 
 
 
-  flg_ab=nco_sph_metric(a,b,Icross);
+  flg_ab= nco_sph_metric_int(a, b, Icross);
 
-  flg_cd=nco_sph_metric(c,d,Icross );
+  flg_cd= nco_sph_metric_int(c, d, Icross);
 
 
 
@@ -1069,9 +1091,9 @@ nco_sph_seg_int(double *a, double *b, double *c, double *d, double *p, double *q
   nco_sph_add_lonlat(Icross);
 
 
-  flg_ab=nco_sph_metric(a,b,Icross);
+  flg_ab= nco_sph_metric_int(a, b, Icross);
 
-  flg_cd=nco_sph_metric(c,d,Icross );
+  flg_cd= nco_sph_metric_int(c, d, Icross);
 
 
 
