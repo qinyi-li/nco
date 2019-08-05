@@ -110,6 +110,10 @@ nco_sph_seg_int_old(double *a, double *b, double *c, double *d, double *p, doubl
 nco_bool
 nco_sph_seg_int(double *a, double *b, double *c, double *d, double *p, double *q, int flg_snp_to, char *codes);
 
+nco_bool
+nco_sph_seg_int_1(double *a, double *b, double *c, double *d, double *p, double *q, int flg_snp_to, char *codes);
+
+
 char
 nco_sph_seg_parallel(double *p0, double *p1, double *q0, double *q1, double *r0, double *r1, poly_vrl_flg_enm *inflag );
 
@@ -207,6 +211,9 @@ nco_sph_centroid_mk(poly_sct *sP, double *pControl);
 
 nco_bool
 nco_sph_inside_mk(poly_sct *sP, double *pControl);
+
+double
+nco_sph_trp_prd(double *a, double *b, double *c);
 
 /***************** nco_geo functions these manimpulate lat & lon  ***************************/
 void
