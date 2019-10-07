@@ -2328,143 +2328,23 @@ int  kd_neighbour(KDElem *node, kd_box Xq, int m, KDPriority *list, kd_box Bp, k
 
 
 
-int kd_neighbour_intersect(KDElem *node, kd_box Xq, int m, KDPriority *list, kd_box Bp, kd_box Bn)
-{
-  int idx;
-  int iret;
-
-  if( BOXINTERSECT(Xq,node->size))
-  {
-    for(idx=0 ; idx<m ;idx++)
-    {
-      if(list[idx].elem == (KDElem*)NULL)
-	{
-	  list[idx].elem=node;
-	  list[idx].dist=1.1;
-	  break;
-        }	  
-
-    }
-    if(idx==m)
-      return 0;
-
-    
-  }  
-  
-  if( node->sons[0] )
-  {  
-    iret= kd_neighbour_intersect(node->sons[0], Xq,  m,  list,  Bp,  Bn);
-    if(iret==0) return iret;
-      
-  }
-     
-  if( node->sons[1] )
-  {  
-     kd_neighbour_intersect(node->sons[1], Xq,  m,  list,  Bp,  Bn);
-     if(iret==0) return iret;
-       
-  }
-     
-  return 1;
-
-}
-
-int kd_neighbour_intersect2(KDElem *node, int disc, kd_box Xq, int m, KDPriority *list)
-{
-  int idx;
-  int iret;
-
-
-  
-  /* horizonal */
-  if( disc == 0 || disc==2 )
-  {
-    /* out of bounds no overlap */ 
-     iret=!( node->lo_min_bound > Xq[KD_RIGHT] ||  node->hi_max_bound < Xq[KD_LEFT] );
-
-     if(iret==0) return 1;
-
-
-     /* check vertical */
-     //if(  node->size[KD_BOTTOM] >= Xq[KD_BOTTOM] && node->size[KD_BOTTOM] <= Xq[KD_TOP] )
-     if( BOXINTERSECT(node->size, Xq) )
-     { 
-           for(idx=0 ; idx<m ;idx++)
-             if(!list[idx].elem)
-	     {
-	        list[idx].elem=node;
-	        list[idx].dist=1.1;
-	        break;
-             }	  
-
-	   if(idx==m)
-                 return 0;
-     }
-   
-  }
-  else
-    /* vertical */  
-  {    
-
-    /* out of bounds - no overlap */
-    iret=!( node->lo_min_bound >  Xq[KD_TOP] ||  node->hi_max_bound < Xq[KD_BOTTOM] );
-     if(iret==0) return 1;
-
-
-     // if( node->size[KD_LEFT] >= Xq[KD_LEFT] && node->size[KD_LEFT] <= Xq[KD_RIGHT] )
-     if( BOXINTERSECT(node->size, Xq) )
-       { 
-           for(idx=0 ; idx<m ;idx++)
-             if(!list[idx].elem)
-	     {
-	       list[idx].elem=node;
-	       list[idx].dist=1.1;
-	       break;
-             }
-	   
-	   if(idx==m)
-	     return 0;
-
-     }
-
-
-
-  }
-
-
-  if( node->sons[0] )
-  {
-    iret= kd_neighbour_intersect2(node->sons[0], (disc+1)%4, Xq,  m,  list);
-    if(iret==0) return iret;
-      
-  }
-     
-  if( node->sons[1] )
-  {  
-    kd_neighbour_intersect2(node->sons[1], (disc+1)%4,  Xq,  m,  list);
-    if(iret==0) return iret;
-       
-  }
-
-
-  return 1;
-  
-}
 
 //int kd_neighbour_intersect3(KDElem *node, int disc, kd_box Xq, KDPriority **list_head , KDPriority *list_end, int stateH, int stateV )
-int kd_neighbour_intersect3(KDElem *node, int disc, kd_box Xq, omp_mem_sct *omp_mem, int stateH, int stateV )
+int kd_neighbour_intersect(KDElem *node, int disc, kd_box Xq, omp_mem_sct *omp_mem, int stateH, int stateV, int depth )
 {
   
   int iret;
 
   nco_bool bAddPnt=False;
 
-  KDPriority *kd_list_nw;
+  KDPriority *lcl_kd_list;
 
 
-  char fnc_nm[]="kd_neighbour_intersect3";
+  char fnc_nm[]="kd_neighbour_intersect";
 
 
+
+  lcl_kd_list=omp_mem->kd_list;
 
   /* horizonal */
   if( stateH <2  &&   (disc == 0 || disc==2 ) )
@@ -2507,51 +2387,60 @@ int kd_neighbour_intersect3(KDElem *node, int disc, kd_box Xq, omp_mem_sct *omp_
 	  bAddPnt=True;
 
 	/* add node as necessary */
+
+
   if(bAddPnt)
-  { 
+  {
 
 
-  	 if( omp_mem->kd_blk_nbr * NCO_VRL_BLOCKSIZE < omp_mem->kd_cnt +1 )
-	 {
-
-
-
-       omp_mem->kd_list=(KDPriority*)nco_realloc(omp_mem->kd_list, ++omp_mem->kd_blk_nbr * (NCO_VRL_BLOCKSIZE *sizeof(KDPriority))  );
+    if( omp_mem->kd_blk_nbr * NCO_VRL_BLOCKSIZE < omp_mem->kd_cnt +1 )
+    {
 
 
 
-       //(void)fprintf(stderr,"%s: Increasing block size to %ld kd_cnt=%ld omp_mem=%p\n",fnc_nm, omp_mem->kd_blk_nbr, omp_mem->kd_cnt,   (void*)omp_mem->kd_list );
+      omp_mem->kd_list=(KDPriority*)nco_realloc(omp_mem->kd_list, ++omp_mem->kd_blk_nbr * (NCO_VRL_BLOCKSIZE *sizeof(KDPriority))  );
 
 
-     }
+      (void)fprintf(stderr,"%s: Increasing block size to %ld kd_cnt=%ld omp_mem=%p\n",fnc_nm, omp_mem->kd_blk_nbr, omp_mem->kd_cnt,   (void*)omp_mem->kd_list );
 
 
-  	 omp_mem->kd_list[omp_mem->kd_cnt].elem = node;
-  	 omp_mem->kd_list[omp_mem->kd_cnt].dist = 1.0;
-  	 omp_mem->kd_list[omp_mem->kd_cnt++].area = -1.0;
+    }
 
-
-
-
+    omp_mem->kd_list[omp_mem->kd_cnt].elem = node;
+    omp_mem->kd_list[omp_mem->kd_cnt].dist = 1.0;
+    omp_mem->kd_list[omp_mem->kd_cnt++].area = -1.0;
   }
-     
-  
+
+
+
+
+
 
   if( node->sons[0] )
   {
-    //iret= kd_neighbour_intersect3(node->sons[0], (disc+1)%4, Xq, list_head,  list_end, stateH, stateV);
-    iret= kd_neighbour_intersect3(node->sons[0], (disc+1)%4, Xq, omp_mem, stateH, stateV);
+    //iret= kd_neighbour_intersect(node->sons[0], (disc+1)%4, Xq, list_head,  list_end, stateH, stateV);
+    iret= kd_neighbour_intersect(node->sons[0], (disc+1)%4, Xq, omp_mem, stateH, stateV, depth+1);
     if(iret==0) return iret;
       
   }
      
   if( node->sons[1] )
   {  
-    //iret=kd_neighbour_intersect3(node->sons[1], (disc+1)%4,  Xq, list_head,  list_end, stateH, stateV);
-    iret=kd_neighbour_intersect3(node->sons[1], (disc+1)%4,  Xq, omp_mem, stateH, stateV);
+    //iret=kd_neighbour_intersect(node->sons[1], (disc+1)%4,  Xq, list_head,  list_end, stateH, stateV);
+    iret=kd_neighbour_intersect(node->sons[1], (disc+1)%4,  Xq, omp_mem, stateH, stateV, depth+1);
     if(iret==0) return iret;
        
   }
+
+
+
+
+
+
+
+
+
+
 
 
   return 1;
@@ -2719,8 +2608,8 @@ int kd_nearest_intersect(KDTree* realTree, kd_box Xq, omp_mem_sct *omp_mem, int 
 	list_end+=m;
    */
 
-	//node_cnt= kd_neighbour_intersect3(realTree->tree,0,Xq, &list_srt ,list_end,0,0);
-	node_cnt= kd_neighbour_intersect3(realTree->tree,0,Xq, omp_mem,0,0);
+	//node_cnt= kd_neighbour_intersect(realTree->tree,0,Xq, &list_srt ,list_end,0,0);
+	node_cnt= kd_neighbour_intersect(realTree->tree,0,Xq, omp_mem,0,0, 0);
 
 
     /*
