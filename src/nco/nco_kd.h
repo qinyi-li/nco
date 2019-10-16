@@ -102,10 +102,11 @@
 #define KD_HISON	1
 
 
-#define KD_INIT_STACK	15	/* Initial size of stack                */
+#define KD_INIT_STACK	25 /* Initial size of stack                */
 
 #define	KD_THIS_ONE	-1	/* Indicates going through this element */
 #define KD_DONE		2	/* Entirely done searching this element */
+
 
 #define PATH_INIT	50
 #define PATH_INCR	10
@@ -160,7 +161,7 @@
 
 #define KDABS(a)		((a) < 0 ? -(a) : (a))
 
-#define KD_GROWSIZE(s)	10	/* Linear expansion  */
+#define KD_GROWSIZE(s)	 25	/* Linear expansion  */
 
 /* all the typedefs in one place */ 
 
