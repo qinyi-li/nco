@@ -1297,8 +1297,9 @@ void kd_push(KDState *gen, KDElem *elem, short disc)
 {
     /* Allocate more space if necessary */
     if (gen->top_index >= gen->stack_size) {
-	gen->stack_size += KD_GROWSIZE(gen->stack_size);
-	gen->stk = (KDSave*)nco_realloc( gen->stk, sizeof(KDSave)*gen->stack_size);
+      gen->stack_size += KD_GROWSIZE(gen->stack_size);
+	  gen->stk = (KDSave*)nco_realloc( gen->stk, sizeof(KDSave)*gen->stack_size);
+
     }
     gen->stk[gen->top_index].disc = disc;
     gen->stk[gen->top_index].state = KD_THIS_ONE;
@@ -2326,6 +2327,153 @@ int  kd_neighbour(KDElem *node, kd_box Xq, int m, KDPriority *list, kd_box Bp, k
 }
 
 
+int  kd_neighbour_nw(KDElem *node, kd_box Xq, omp_mem_sct *omp_mem)
+{
+	int d;
+	short hort,vert;
+	double p;
+
+	kd_box Bp;
+	kd_box Bn;
+
+	KDState *realGen;
+	KDSave *top_elem;
+	KDElem *top_item;
+
+    char fnc_nm[]="kd_neighbour_nw()";
+
+
+	realGen = (KDState*)nco_malloc( sizeof(KDState));
+
+	kd_data_tries = 0;
+
+	realGen->stack_size = KD_INIT_STACK;
+	realGen->top_index = 0;
+	realGen->stk = (KDSave*)nco_malloc(sizeof(KDSave)* KD_INIT_STACK);
+
+	/* Initialize search state */
+	if (node)
+	{
+		kd_push(realGen, node, 0);
+	}
+	else
+	{
+		realGen->top_index = -1;
+	}
+
+	while (realGen->top_index > 0)
+	{
+
+
+		top_elem = &(realGen->stk[realGen->top_index-1]);
+		top_item = top_elem->item;
+		d = top_elem->disc;
+		p = top_item->size[d];
+		hort = (  d==0 || d==2  ?  1: 0 );
+		vert = (  d==1 || d==3  ?  1:  0 );
+
+		//printf("kd_neighbour(), state=%d p=%g disc=%d kd_data_tries=%d\n", top_elem->state,p,d,kd_data_tries );
+
+
+		switch (top_elem->state)
+		{
+			case KD_THIS_ONE:
+				/* Check this one */
+				kd_data_tries++;
+
+
+				if(hort && (top_item->lo_min_bound >Xq[KD_RIGHT] ||  top_item->hi_max_bound <Xq[KD_LEFT] ) )
+				{
+					top_elem->state=KD_DONE;
+
+				}
+				else if(vert && (top_item->lo_min_bound >  Xq[KD_TOP] ||  top_item->hi_max_bound < Xq[KD_BOTTOM]) )
+				{
+					top_elem->state=KD_DONE;
+
+				}
+
+				else if( BOXINTERSECT(top_item->size, Xq) )
+				{
+					if( omp_mem->kd_blk_nbr * NCO_VRL_BLOCKSIZE < omp_mem->kd_cnt +1 ) {
+                      KDPriority *kd_list_nw=NULL_CEWI;
+                      omp_mem->kd_blk_nbr++;
+                      kd_list_nw = (KDPriority *) nco_realloc(omp_mem->kd_list, sizeof(KDPriority) * omp_mem->kd_blk_nbr *NCO_VRL_BLOCKSIZE);
+
+                      if(kd_list_nw)
+                      {
+                        (void)fprintf(stderr,"%s: Increased block size to %ld kd_cnt=%ld kd_list_nw=%p\n",fnc_nm, omp_mem->kd_blk_nbr, omp_mem->kd_cnt,  kd_list_nw);
+
+                      }
+
+                      omp_mem->kd_list=kd_list_nw;
+
+                      //(void)fprintf(stderr,"%s: Increased block size to %ld kd_cnt=%ld omp_mem=%p\n",fnc_nm, omp_mem->kd_blk_nbr, omp_mem->kd_cnt,   (void*)omp_mem->kd_list );
+                    }
+
+					omp_mem->kd_list[omp_mem->kd_cnt].elem = top_item;
+					omp_mem->kd_list[omp_mem->kd_cnt].dist = 1.0;
+					omp_mem->kd_list[omp_mem->kd_cnt++].area = -1.0;
+
+					top_elem->state += 1;
+				}
+				else
+					{
+					top_elem->state += 1;
+					}
+
+
+				break;
+
+
+			case KD_LOSON:
+				/* calc bounds */
+				/* See if we push on the loson */
+				if( top_item->sons[KD_LOSON])
+				{
+					top_elem->state += 1;
+					kd_push(realGen, top_item->sons[KD_LOSON], (d+1)%4);
+				}
+				else
+					top_elem->state += 1;
+
+				break;
+
+
+			case KD_HISON:
+				/* See if we push on the hison */
+
+				if( top_item->sons[KD_HISON])
+				{
+					top_elem->state += 1;
+					kd_push(realGen, top_item->sons[KD_HISON], (d+1)%4);
+				}
+				else
+					top_elem->state += 1;
+
+				break;
+
+			case KD_DONE:
+				/* We have exhausted this node -- pop off the next one */
+				realGen->top_index -= 1;
+		  		break;
+
+
+			default:
+				/* We have exhausted this node -- pop off the next one */
+				realGen->top_index -= 1;
+				break;
+		}
+	}
+	nco_free(realGen->stk);
+	nco_free(realGen);
+
+
+	return kd_data_tries;
+}
+
+
+
 
 
 
@@ -2336,11 +2484,17 @@ int kd_neighbour_intersect(KDElem *node, int disc, kd_box Xq, omp_mem_sct *omp_m
   int iret;
 
   nco_bool bAddPnt=False;
+  nco_bool bnw=True;
 
   KDPriority *lcl_kd_list;
 
 
   char fnc_nm[]="kd_neighbour_intersect";
+
+
+
+  if(bnw)
+    return kd_neighbour_nw(node,Xq,omp_mem);
 
 
 
